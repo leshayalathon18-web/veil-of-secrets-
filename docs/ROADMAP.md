@@ -5,7 +5,9 @@
 Status: complete.
 
 - Original Blackthorn visual system
-- Opening, rules, practice case, notebook, accusation, verdict
+- Opening, board-game rules, nine-room manor board, notebook, accusation, verdict
+- Four detective pawns, animated dice, connected movement, rival turns
+- Round pressure, room searches, and flipping manor-event cards
 - Responsive layouts and accessibility preferences
 - Production build, automated checks, share card, and deployment
 

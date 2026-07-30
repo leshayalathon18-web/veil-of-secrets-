@@ -11,7 +11,10 @@ The first-launch vertical slice includes:
 
 - Cinematic animated opening and original visual identity
 - Three-step visual rules sequence
-- Four-room practice mystery with interactive evidence
+- Nine-room tabletop manor board with connected-door movement
+- Animated brass die, movement points, turn order, and four detective pawns
+- Rival movement, round pressure, and flipping manor-event cards
+- Room searches with interactive evidence
 - Automatic detective notebook
 - Full culprit, method, location, and motive accusation
 - Wrong-theory guidance and completed-case scoring
@@ -22,10 +25,11 @@ The first-launch vertical slice includes:
 
 ## Product direction
 
-The next production milestone turns the solo practice case into a multiplayer
-lobby and match shell. The game will then add deterministic mystery generation,
-server-authoritative phase control, player roles, discussion tools, voice
-controls, moderation, progression, and additional Blackthorn rooms.
+The next production milestone turns the local tabletop case into a multiplayer
+lobby and synchronized match shell. The game will then add deterministic
+mystery generation, server-authoritative phase control, player roles,
+discussion tools, voice controls, moderation, progression, and the complete
+Blackthorn room set.
 
 See [docs/PRODUCT_BRIEF.md](docs/PRODUCT_BRIEF.md) and
 [docs/ROADMAP.md](docs/ROADMAP.md) for the source-of-truth design and delivery

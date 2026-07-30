@@ -49,17 +49,34 @@ test("publishes branded social metadata and artwork", async () => {
   await access(new URL("../public/og.png", import.meta.url));
 });
 
-test("keeps the full practice case and accessibility controls in source", async () => {
+test("keeps the full tabletop case and accessibility controls in source", async () => {
   const [page, css, packageJson] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
   ]);
 
-  for (const room of ["library", "conservatory", "study", "hall"]) {
+  for (const room of [
+    "observatory",
+    "library",
+    "study",
+    "ballroom",
+    "hall",
+    "dining",
+    "conservatory",
+    "cellar",
+    "kitchen",
+  ]) {
     assert.match(page, new RegExp(`id: "${room}"`));
   }
 
+  assert.match(page, /const rollDice/);
+  assert.match(page, /const movePawn/);
+  assert.match(page, /const searchCurrentRoom/);
+  assert.match(page, /const endBoardTurn/);
+  assert.match(page, /Interactive Blackthorn Manor board/);
+  assert.match(page, /manorEvents/);
+  assert.match(page, /You \+ 3 manor minds/);
   assert.match(page, /selectedSuspect === "celia"/);
   assert.match(page, /Silver letter opener/);
   assert.match(page, /To conceal the stolen estate funds/);
@@ -67,6 +84,9 @@ test("keeps the full practice case and accessibility controls in source", async 
   assert.match(page, /reducedMotion/);
   assert.match(page, /captionsOn/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
+  assert.match(css, /\.manor-board/);
+  assert.match(css, /\.brass-die/);
+  assert.match(css, /@keyframes roll-die/);
   assert.match(packageJson, /"lucide-react"/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
 });

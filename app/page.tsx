@@ -6,10 +6,14 @@ import {
   BookOpen,
   Check,
   ChevronLeft,
+  CircleDot,
   Clock3,
+  Dices,
   Eye,
   Feather,
   Flame,
+  Footprints,
+  Flag,
   Headphones,
   KeyRound,
   Library,
@@ -20,15 +24,26 @@ import {
   Search,
   Settings,
   ShieldCheck,
+  Shuffle,
   Sparkles,
+  UsersRound,
   Volume2,
   VolumeX,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useState } from "react";
 
 type Scene = "opening" | "rules" | "case" | "verdict" | "menu";
-type RoomId = "library" | "conservatory" | "study" | "hall";
+type RoomId =
+  | "observatory"
+  | "library"
+  | "study"
+  | "ballroom"
+  | "hall"
+  | "dining"
+  | "conservatory"
+  | "cellar"
+  | "kitchen";
 
 type Room = {
   id: RoomId;
@@ -38,68 +53,178 @@ type Room = {
   clue: string;
   note: string;
   icon: typeof Library;
+  area: string;
+  neighbors: RoomId[];
+  hue: string;
 };
 
 const rooms: Room[] = [
   {
+    id: "observatory",
+    name: "Observatory",
+    kicker: "The storm seen backwards",
+    description:
+      "The telescope lens is wet on its western edge, although the rain is driving from the east.",
+    clue: "Reversed rain trace",
+    note: "The east casement was opened from inside shortly after 10:17, creating a false escape route.",
+    icon: Eye,
+    area: "observatory",
+    neighbors: ["library", "ballroom"],
+    hue: "#355d70",
+  },
+  {
     id: "library",
-    name: "The Library",
+    name: "Library",
     kicker: "A fire that should be cold",
     description:
       "A page still glows beneath the grate. Someone tried to burn one name and left the rest of the ledger untouched.",
     clue: "Scorched ledger",
     note: "Edmund traced £8,000 in missing estate funds to an account signed C. Harrow.",
     icon: Library,
-  },
-  {
-    id: "conservatory",
-    name: "The Conservatory",
-    kicker: "Rain where no window broke",
-    description:
-      "A single white camellia lies in a trail of rainwater. The garden door was locked from inside.",
-    clue: "Rain-soaked camellia",
-    note: "Celia wore a white camellia at dinner. Its stem was cut moments before the storm.",
-    icon: Sparkles,
+    area: "library",
+    neighbors: ["observatory", "study", "hall"],
+    hue: "#75444c",
   },
   {
     id: "study",
-    name: "The Study",
+    name: "Study",
     kicker: "A clock that contradicts",
     description:
       "Edmund's pocket watch is cracked beneath the writing desk, its hands fixed at the instant it struck marble.",
     clue: "Stopped pocket watch",
     note: "The watch stopped at 10:17. Celia claimed she heard Edmund alive at half past ten.",
     icon: Clock3,
+    area: "study",
+    neighbors: ["library", "dining"],
+    hue: "#5a4a76",
+  },
+  {
+    id: "ballroom",
+    name: "Ballroom",
+    kicker: "Music with twelve witnesses",
+    description:
+      "The gramophone needle rests at the final groove while the guest book records a full audience.",
+    clue: "Finished waltz record",
+    note: "Mirelle was visible on the ballroom stage from 10:10 until the record ended at 10:24.",
+    icon: Sparkles,
+    area: "ballroom",
+    neighbors: ["observatory", "hall", "conservatory"],
+    hue: "#7a5b35",
   },
   {
     id: "hall",
-    name: "The Grand Hall",
+    name: "Grand Hall",
     kicker: "A quiet return upstairs",
     description:
       "One narrow, mud-dark print interrupts the polished marble beside the east staircase.",
     clue: "Narrow evening-shoe print",
     note: "The print is a narrow size seven. Elias Voss wears an eleven; Celia's dinner shoes are missing.",
     icon: MapPin,
+    area: "hall",
+    neighbors: ["library", "ballroom", "dining", "cellar"],
+    hue: "#8a6938",
+  },
+  {
+    id: "dining",
+    name: "Dining Hall",
+    kicker: "A glass nobody drank",
+    description:
+      "Edmund's cordial remains untouched. A bitter scent comes from orange peel, not poison.",
+    clue: "Untouched cordial",
+    note: "The drink was staged to suggest poison. Edmund died before returning to the dining table.",
+    icon: CircleDot,
+    area: "dining",
+    neighbors: ["study", "hall", "kitchen"],
+    hue: "#6d3b35",
+  },
+  {
+    id: "conservatory",
+    name: "Conservatory",
+    kicker: "Rain where no window broke",
+    description:
+      "A single white camellia lies in a trail of rainwater. The garden door was locked from inside.",
+    clue: "Rain-soaked camellia",
+    note: "Celia wore a white camellia at dinner. Its stem was cut moments before the storm.",
+    icon: Sparkles,
+    area: "conservatory",
+    neighbors: ["ballroom", "cellar"],
+    hue: "#3f6754",
+  },
+  {
+    id: "cellar",
+    name: "Wine Cellar",
+    kicker: "A footprint too obvious",
+    description:
+      "A broad boot scrape ends beneath a sealed cask, surrounded by soil that never touched the garden path.",
+    clue: "Planted boot scrape",
+    note: "Someone copied Elias's size-eleven boot to manufacture an alibi against him.",
+    icon: Footprints,
+    area: "cellar",
+    neighbors: ["conservatory", "hall", "kitchen"],
+    hue: "#4e4041",
+  },
+  {
+    id: "kitchen",
+    name: "Kitchen",
+    kicker: "Silver polish, freshly used",
+    description:
+      "A crimson wrapping cloth smells of metal polish. Its narrow fold fits a desk blade.",
+    clue: "Polishing cloth",
+    note: "The silver letter opener was wiped clean in the kitchen and returned to the library desk.",
+    icon: Search,
+    area: "kitchen",
+    neighbors: ["dining", "cellar"],
+    hue: "#6a503b",
+  },
+];
+
+const detectives = [
+  { id: "you", name: "You", title: "The Lantern", initials: "YL", color: "#e3c878" },
+  { id: "iris", name: "Iris Bell", title: "The Listener", initials: "IB", color: "#75b8c8" },
+  { id: "theo", name: "Theo Wren", title: "The Archivist", initials: "TW", color: "#a98bd4" },
+  { id: "nell", name: "Nell Fox", title: "The Skeptic", initials: "NF", color: "#d16d78" },
+] as const;
+
+const manorEvents = [
+  {
+    title: "A candle gutters out",
+    text: "The east corridor goes dark. Every detective moves with care until the next roll.",
+  },
+  {
+    title: "A floorboard answers",
+    text: "A hollow knock reveals that someone crossed the hall twice after 10:17.",
+  },
+  {
+    title: "Thunder over Blackthorn",
+    text: "The room falls silent. Share one clue aloud before the next turn begins.",
+  },
+  {
+    title: "A servant remembers",
+    text: "Celia requested silver polish shortly before dinner. Mark the kitchen for inspection.",
+  },
+  {
+    title: "The west clock chimes",
+    text: "Advance the Veil track. At midnight, every detective must seal a theory.",
   },
 ];
 
 const rules = [
   {
     number: "I",
-    title: "Observe the scene",
-    body: "Search rooms for details the culprit could not erase. Every object can shift the timeline.",
-    icon: Search,
+    title: "Roll and roam",
+    body: "Roll the brass die and move your detective through connected doorways on the Blackthorn board.",
+    icon: Dices,
   },
   {
     number: "II",
-    title: "Connect contradictions",
-    body: "Your notebook records evidence automatically. Compare it against testimony, motive, and movement.",
+    title: "Search and share",
+    body: "Spend your turn searching a room. The clue enters your notebook—what you reveal at the table is your choice.",
     icon: BookOpen,
   },
   {
     number: "III",
-    title: "Name the whole truth",
-    body: "Accuse the culprit, method, location, and motive. A guess is cheap; a complete theory wins.",
+    title: "Seal your theory",
+    body: "Before midnight, name the culprit, method, location, and motive. Complete deductions earn the strongest score.",
     icon: Feather,
   },
 ];
@@ -107,7 +232,7 @@ const rules = [
 const menuItems = [
   {
     label: "Enter Blackthorn",
-    detail: "Continue the practice mystery",
+    detail: "Play the interactive manor board",
     icon: KeyRound,
     action: "case",
   },
@@ -215,10 +340,29 @@ export default function Home() {
   const [selectedLocation, setSelectedLocation] = useState("");
   const [selectedMotive, setSelectedMotive] = useState("");
   const [wrongTheory, setWrongTheory] = useState(false);
+  const [round, setRound] = useState(1);
+  const [diceValue, setDiceValue] = useState<number | null>(null);
+  const [diceRolling, setDiceRolling] = useState(false);
+  const [movesLeft, setMovesLeft] = useState(0);
+  const [searchedThisTurn, setSearchedThisTurn] = useState(false);
+  const [eventIndex, setEventIndex] = useState<number | null>(null);
+  const [boardNotice, setBoardNotice] = useState(
+    "Roll the brass die, then choose a glowing doorway.",
+  );
+  const [pawnRooms, setPawnRooms] = useState<Record<string, RoomId>>({
+    you: "hall",
+    iris: "observatory",
+    theo: "kitchen",
+    nell: "conservatory",
+  });
 
   const evidenceCount = investigated.length;
-  const canAccuse = evidenceCount >= 3;
+  const canAccuse = evidenceCount >= 4;
   const activeRoomData = rooms.find((room) => room.id === activeRoom);
+  const currentRoom =
+    rooms.find((room) => room.id === pawnRooms.you) ?? rooms[4];
+  const reachableRooms = currentRoom.neighbors;
+  const hasRolled = diceValue !== null;
   const accusationComplete =
     selectedSuspect && selectedMethod && selectedLocation && selectedMotive;
 
@@ -245,6 +389,83 @@ export default function Home() {
       setInvestigated((current) => [...current, room.id]);
       playChime(soundOn);
     }
+  };
+
+  const rollDice = () => {
+    if (diceRolling || hasRolled) return;
+    setDiceRolling(true);
+    setEventIndex(null);
+    setBoardNotice("The die tumbles across the velvet...");
+    playChime(soundOn);
+
+    window.setTimeout(() => {
+      const value = Math.floor(Math.random() * 4) + 2;
+      setDiceValue(value);
+      setMovesLeft(value);
+      setDiceRolling(false);
+      setBoardNotice(
+        `Move up to ${value} rooms. Connected doorways are glowing.`,
+      );
+    }, reducedMotion ? 80 : 620);
+  };
+
+  const movePawn = (room: Room) => {
+    if (!hasRolled || movesLeft < 1 || !reachableRooms.includes(room.id)) return;
+    setPawnRooms((current) => ({ ...current, you: room.id }));
+    setMovesLeft((current) => current - 1);
+    setSearchedThisTurn(false);
+    setBoardNotice(
+      investigated.includes(room.id)
+        ? `${room.name} has already yielded its strongest clue.`
+        : `You entered the ${room.name}. Search it, or keep moving.`,
+    );
+    playChime(soundOn);
+  };
+
+  const searchCurrentRoom = () => {
+    if (!hasRolled || searchedThisTurn) return;
+    setSearchedThisTurn(true);
+    setMovesLeft(0);
+    inspectRoom(currentRoom);
+    setBoardNotice(`${currentRoom.clue} was added to your private notebook.`);
+  };
+
+  const endBoardTurn = () => {
+    const nextEvent = Math.floor(Math.random() * manorEvents.length);
+    setEventIndex(nextEvent);
+    setPawnRooms((current) => {
+      const next = { ...current };
+      for (const detective of detectives.slice(1)) {
+        const room = rooms.find((item) => item.id === current[detective.id]);
+        const choices = room?.neighbors ?? ["hall"];
+        next[detective.id] =
+          choices[Math.floor(Math.random() * choices.length)] ?? "hall";
+      }
+      return next;
+    });
+    setRound((current) => current + 1);
+    setDiceValue(null);
+    setMovesLeft(0);
+    setSearchedThisTurn(false);
+    setBoardNotice("The other detectives have moved. Your turn begins again.");
+    playChime(soundOn);
+  };
+
+  const restartBoard = () => {
+    setRound(1);
+    setDiceValue(null);
+    setMovesLeft(0);
+    setSearchedThisTurn(false);
+    setEventIndex(null);
+    setInvestigated([]);
+    setPawnRooms({
+      you: "hall",
+      iris: "observatory",
+      theo: "kitchen",
+      nell: "conservatory",
+    });
+    setBoardNotice("Roll the brass die, then choose a glowing doorway.");
+    playChime(soundOn);
   };
 
   const submitTheory = () => {
@@ -478,8 +699,8 @@ export default function Home() {
             })}
             <div className="menu-status">
               <div className="live-dot" />
-              <span>Case generator online</span>
-              <small>Practice case · Solo</small>
+              <span>Blackthorn table ready</span>
+              <small>You + 3 manor minds</small>
             </div>
           </nav>
         </section>
@@ -487,91 +708,217 @@ export default function Home() {
 
       {scene === "case" && (
         <section className="case-scene scene" aria-labelledby="case-title">
-          <div className="case-header">
+          <div className="tabletop-header">
             <div>
-              <p className="eyebrow">Practice mystery · Case 001</p>
+              <p className="eyebrow">Blackthorn table · Case 001</p>
               <h2 id="case-title">The Ashes in the Library</h2>
               <p>
-                Edmund Vale is dead. Three guests insist they never entered the
-                east wing. The manor disagrees.
+                Roll, move room to room, and search before the Veil track reaches
+                midnight. The other detectives are watching the same board.
               </p>
             </div>
-            <div className="case-header-actions">
-              <button
-                className="notebook-button"
-                onClick={() => setNotebookOpen(true)}
-              >
+            <div className="tabletop-header-actions">
+              <button className="icon-button" onClick={restartBoard} aria-label="Restart board">
+                <Shuffle size={18} />
+              </button>
+              <button className="notebook-button" onClick={() => setNotebookOpen(true)}>
                 <BookOpen size={18} />
                 <span>
                   Notebook
-                  <small>{evidenceCount} evidence logged</small>
+                  <small>{evidenceCount} of {rooms.length} clues</small>
                 </span>
               </button>
-              <button
-                className="primary-button accuse-button"
-                onClick={() => setAccusationOpen(true)}
-                disabled={!canAccuse}
-              >
-                <Feather size={17} />
-                Accuse
-              </button>
             </div>
           </div>
 
-          <div className="case-progress">
-            <div>
-              <span>Evidence chain</span>
-              <strong>{evidenceCount} / {rooms.length}</strong>
+          <div className="tabletop-status">
+            <span><UsersRound size={15} /> Family table · You + 3 manor minds</span>
+            <strong>Round {round}</strong>
+            <div className="veil-pips" aria-label={`Veil track, round ${round} of 8`}>
+              {Array.from({ length: 8 }).map((_, index) => (
+                <i key={index} className={index < Math.min(round, 8) ? "filled" : ""} />
+              ))}
             </div>
-            <div className="progress-track">
-              <span style={{ width: `${(evidenceCount / rooms.length) * 100}%` }} />
-            </div>
-            <small>
-              {canAccuse
-                ? "You have enough evidence to form a theory."
-                : "Inspect at least three rooms before accusing."}
-            </small>
+            <small>{round >= 8 ? "Midnight is here — seal a theory." : `${8 - round} rounds until midnight`}</small>
           </div>
 
-          <div className="room-grid" aria-label="Rooms to investigate">
-            {rooms.map((room, index) => {
-              const Icon = room.icon;
-              const found = investigated.includes(room.id);
-              return (
-                <button
-                  className={`room-card ${found ? "investigated" : ""}`}
-                  key={room.id}
-                  onClick={() => inspectRoom(room)}
-                >
-                  <div className="room-card-top">
-                    <span className="room-number">{String(index + 1).padStart(2, "0")}</span>
-                    <span className="room-icon">
-                      {found ? <Check size={19} /> : <Icon size={20} />}
+          <div className="tabletop-layout">
+            <aside className="turn-panel" aria-label="Detective turn order">
+              <div className="panel-label">
+                <span>Turn order</span>
+                <Flag size={15} />
+              </div>
+              <div className="detective-stack">
+                {detectives.map((detective, index) => (
+                  <article className={index === 0 ? "active" : ""} key={detective.id}>
+                    <div
+                      className="detective-token"
+                      style={{ "--player-color": detective.color } as CSSProperties}
+                    >
+                      {detective.initials}
+                    </div>
+                    <span>
+                      <strong>{detective.name}</strong>
+                      <small>{detective.title}</small>
                     </span>
-                  </div>
-                  <div>
-                    <small>{room.kicker}</small>
-                    <h3>{room.name}</h3>
-                  </div>
-                  <div className="room-card-bottom">
-                    <span>{found ? room.clue : "Search the room"}</span>
-                    <ArrowRight size={17} />
-                  </div>
+                    {index === 0 ? <b>Your turn</b> : <i>{index + 1}</i>}
+                  </article>
+                ))}
+              </div>
+
+              <div className="evidence-meter">
+                <div>
+                  <span>Shared evidence</span>
+                  <strong>{evidenceCount}/{rooms.length}</strong>
+                </div>
+                <div className="progress-track">
+                  <span style={{ width: `${(evidenceCount / rooms.length) * 100}%` }} />
+                </div>
+                <small>{canAccuse ? "A complete theory is now possible." : "Find four clues to unlock accusations."}</small>
+              </div>
+            </aside>
+
+            <div className="manor-board-wrap">
+              <div className="board-ribbon">
+                <span><CircleDot size={14} /> Your pawn is in the {currentRoom.name}</span>
+                <strong>{movesLeft > 0 ? `${movesLeft} moves left` : hasRolled ? "Choose an action" : "Awaiting roll"}</strong>
+              </div>
+              <div className="manor-board" aria-label="Interactive Blackthorn Manor board">
+                <div className="board-fold vertical" aria-hidden="true" />
+                <div className="board-fold horizontal" aria-hidden="true" />
+                <div className="board-center-seal" aria-hidden="true">
+                  <Eye size={22} />
+                </div>
+                {rooms.map((room) => {
+                  const Icon = room.icon;
+                  const found = investigated.includes(room.id);
+                  const occupied = detectives.filter(
+                    (detective) => pawnRooms[detective.id] === room.id,
+                  );
+                  const reachable =
+                    hasRolled && movesLeft > 0 && reachableRooms.includes(room.id);
+                  const current = pawnRooms.you === room.id;
+                  return (
+                    <button
+                      key={room.id}
+                      className={`board-room ${found ? "discovered" : ""} ${
+                        reachable ? "reachable" : ""
+                      } ${current ? "current" : ""}`}
+                      style={{
+                        gridArea: room.area,
+                        "--room-hue": room.hue,
+                      } as CSSProperties}
+                      onClick={() => movePawn(room)}
+                      disabled={!reachable}
+                      aria-label={`${room.name}${current ? ", your current room" : ""}${
+                        reachable ? ", reachable" : ""
+                      }`}
+                    >
+                      <span className="board-room-icon">
+                        <Icon size={17} strokeWidth={1.5} />
+                      </span>
+                      <span className="board-room-copy">
+                        <strong>{room.name}</strong>
+                        <small>{found ? room.clue : current ? "Search available" : "Unsearched"}</small>
+                      </span>
+                      {found && <Check className="clue-check" size={14} />}
+                      <span className="pawn-cluster" aria-hidden="true">
+                        {occupied.map((detective) => (
+                          <i
+                            key={detective.id}
+                            title={detective.name}
+                            style={{ "--player-color": detective.color } as CSSProperties}
+                          >
+                            {detective.initials.slice(0, 1)}
+                          </i>
+                        ))}
+                      </span>
+                      {reachable && <span className="doorway-pulse" />}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="board-notice" aria-live="polite">
+                <Footprints size={15} />
+                {boardNotice}
+              </p>
+            </div>
+
+            <aside className="action-console" aria-label="Turn actions">
+              <div className="panel-label">
+                <span>Action tray</span>
+                <Dices size={15} />
+              </div>
+              <button
+                className={`brass-die ${diceRolling ? "rolling" : ""}`}
+                onClick={rollDice}
+                disabled={hasRolled || diceRolling}
+                aria-label={hasRolled ? `Rolled ${diceValue}` : "Roll the movement die"}
+              >
+                <span>{diceRolling ? "?" : diceValue ?? "ROLL"}</span>
+                <small>{hasRolled ? "Movement" : "Brass die"}</small>
+              </button>
+
+              <div className="turn-actions">
+                <button
+                  className="table-action search-action"
+                  onClick={searchCurrentRoom}
+                  disabled={!hasRolled || searchedThisTurn}
+                >
+                  <Search size={18} />
+                  <span>
+                    <strong>Search room</strong>
+                    <small>{currentRoom.name}</small>
+                  </span>
                 </button>
-              );
-            })}
+                <button
+                  className="table-action"
+                  onClick={endBoardTurn}
+                  disabled={!hasRolled}
+                >
+                  <ArrowRight size={18} />
+                  <span>
+                    <strong>End turn</strong>
+                    <small>Let rivals move</small>
+                  </span>
+                </button>
+                <button
+                  className="table-action accusation-action"
+                  onClick={() => setAccusationOpen(true)}
+                  disabled={!canAccuse && round < 8}
+                >
+                  <Feather size={18} />
+                  <span>
+                    <strong>Seal theory</strong>
+                    <small>{canAccuse ? "Accusation ready" : "Needs four clues"}</small>
+                  </span>
+                </button>
+              </div>
+
+              <div className={`manor-card ${eventIndex !== null ? "revealed" : ""}`}>
+                <div className="card-back">
+                  <Eye size={24} />
+                  <span>MANOR</span>
+                </div>
+                <div className="card-face">
+                  <small>Manor event</small>
+                  <strong>{eventIndex !== null ? manorEvents[eventIndex].title : "End a turn to draw"}</strong>
+                  <p>{eventIndex !== null ? manorEvents[eventIndex].text : "The house changes between every round."}</p>
+                </div>
+              </div>
+            </aside>
           </div>
 
-          <aside className="witness-strip">
+          <aside className="witness-strip tabletop-talk">
             <div className="witness-icon">
               <Mic size={20} />
               <span />
             </div>
             <div>
-              <small>Witness statement · Celia Harrow</small>
+              <small>Table talk · Celia Harrow&apos;s statement</small>
               <p>
-                “At half past ten, I heard Edmund pacing in the library. I
-                retired to my room without seeing him.”
+                “At half past ten, I heard Edmund pacing in the library.”
+                Decide together: memory, mistake, or deliberate misdirection?
               </p>
             </div>
             <span className="caption-badge">
