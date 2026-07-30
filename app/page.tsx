@@ -34,6 +34,7 @@ import {
 import { type CSSProperties, useEffect, useMemo, useState } from "react";
 
 type Scene = "opening" | "rules" | "case" | "verdict" | "menu";
+type TurnPhase = "roll" | "move" | "search" | "end";
 type RoomId =
   | "observatory"
   | "library"
@@ -282,6 +283,22 @@ const motives = [
   "To stop a private engagement",
 ];
 
+const turnPhases: { id: TurnPhase; label: string; detail: string }[] = [
+  { id: "roll", label: "Roll", detail: "Cast the movement die" },
+  { id: "move", label: "Move", detail: "Follow connected corridors" },
+  { id: "search", label: "Search", detail: "Draw evidence from your room" },
+  { id: "end", label: "Pass", detail: "Reveal a manor event" },
+];
+
+const dicePips: Record<number, number[]> = {
+  1: [4],
+  2: [0, 8],
+  3: [0, 4, 8],
+  4: [0, 2, 6, 8],
+  5: [0, 2, 4, 6, 8],
+  6: [0, 2, 3, 5, 6, 8],
+};
+
 function playChime(enabled: boolean, success = false) {
   if (!enabled || typeof window === "undefined") return;
   const AudioContextClass =
@@ -305,6 +322,75 @@ function playChime(enabled: boolean, success = false) {
   gain.connect(ctx.destination);
   oscillator.start();
   oscillator.stop(ctx.currentTime + 0.28);
+}
+
+function playDiceRoll(enabled: boolean, reducedMotion: boolean) {
+  if (!enabled || typeof window === "undefined") return;
+  const AudioContextClass =
+    window.AudioContext ||
+    (window as typeof window & { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext;
+  if (!AudioContextClass) return;
+
+  const ctx = new AudioContextClass();
+  const now = ctx.currentTime;
+  const duration = reducedMotion ? 0.28 : 0.76;
+  const master = ctx.createGain();
+  master.gain.setValueAtTime(0.34, now);
+  master.gain.exponentialRampToValueAtTime(0.0001, now + duration + 0.16);
+  master.connect(ctx.destination);
+
+  const noiseBuffer = ctx.createBuffer(
+    1,
+    Math.ceil(ctx.sampleRate * (duration + 0.08)),
+    ctx.sampleRate,
+  );
+  const noise = noiseBuffer.getChannelData(0);
+  for (let index = 0; index < noise.length; index += 1) {
+    const time = index / ctx.sampleRate;
+    const pulse = Math.pow(Math.max(0, Math.sin(time * 49)), 8);
+    const decay = Math.max(0, 1 - time / (duration + 0.08));
+    noise[index] = (Math.random() * 2 - 1) * pulse * decay;
+  }
+
+  const rattle = ctx.createBufferSource();
+  const rattleFilter = ctx.createBiquadFilter();
+  const rattleGain = ctx.createGain();
+  rattle.buffer = noiseBuffer;
+  rattleFilter.type = "bandpass";
+  rattleFilter.frequency.setValueAtTime(1450, now);
+  rattleFilter.Q.setValueAtTime(0.7, now);
+  rattleGain.gain.setValueAtTime(0.0001, now);
+  rattleGain.gain.exponentialRampToValueAtTime(0.42, now + 0.018);
+  rattleGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+  rattle.connect(rattleFilter);
+  rattleFilter.connect(rattleGain);
+  rattleGain.connect(master);
+  rattle.start(now);
+  rattle.stop(now + duration + 0.08);
+
+  const impacts = reducedMotion
+    ? [0.03, 0.13, 0.23]
+    : [0.02, 0.11, 0.2, 0.31, 0.43, 0.56, 0.7];
+  impacts.forEach((offset, index) => {
+    const knock = ctx.createOscillator();
+    const knockGain = ctx.createGain();
+    knock.type = index % 2 === 0 ? "triangle" : "square";
+    knock.frequency.setValueAtTime(205 - index * 15, now + offset);
+    knock.frequency.exponentialRampToValueAtTime(72, now + offset + 0.045);
+    knockGain.gain.setValueAtTime(0.0001, now + offset);
+    knockGain.gain.exponentialRampToValueAtTime(
+      index === impacts.length - 1 ? 0.36 : 0.19,
+      now + offset + 0.004,
+    );
+    knockGain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.065);
+    knock.connect(knockGain);
+    knockGain.connect(master);
+    knock.start(now + offset);
+    knock.stop(now + offset + 0.075);
+  });
+
+  window.setTimeout(() => void ctx.close(), (duration + 0.3) * 1000);
 }
 
 function readPreference(key: string, fallback: boolean) {
@@ -342,8 +428,10 @@ export default function Home() {
   const [wrongTheory, setWrongTheory] = useState(false);
   const [round, setRound] = useState(1);
   const [diceValue, setDiceValue] = useState<number | null>(null);
+  const [diceFace, setDiceFace] = useState(6);
   const [diceRolling, setDiceRolling] = useState(false);
   const [movesLeft, setMovesLeft] = useState(0);
+  const [pathThisTurn, setPathThisTurn] = useState<RoomId[]>(["hall"]);
   const [searchedThisTurn, setSearchedThisTurn] = useState(false);
   const [eventIndex, setEventIndex] = useState<number | null>(null);
   const [boardNotice, setBoardNotice] = useState(
@@ -363,6 +451,16 @@ export default function Home() {
     rooms.find((room) => room.id === pawnRooms.you) ?? rooms[4];
   const reachableRooms = currentRoom.neighbors;
   const hasRolled = diceValue !== null;
+  const turnPhase: TurnPhase = diceRolling
+    ? "roll"
+    : !hasRolled
+      ? "roll"
+      : movesLeft > 0 && !searchedThisTurn
+        ? "move"
+        : !searchedThisTurn
+          ? "search"
+          : "end";
+  const turnPhaseIndex = turnPhases.findIndex((phase) => phase.id === turnPhase);
   const accusationComplete =
     selectedSuspect && selectedMethod && selectedLocation && selectedMotive;
 
@@ -393,25 +491,38 @@ export default function Home() {
 
   const rollDice = () => {
     if (diceRolling || hasRolled) return;
+    const value = Math.floor(Math.random() * 6) + 1;
+    const rollDuration = reducedMotion ? 280 : 760;
+    const faceSequence = [2, 5, 3, 6, 1, 4, value];
     setDiceRolling(true);
     setEventIndex(null);
+    setPathThisTurn([pawnRooms.you]);
     setBoardNotice("The die tumbles across the velvet...");
-    playChime(soundOn);
+    playDiceRoll(soundOn, reducedMotion);
 
+    faceSequence.forEach((face, index) => {
+      window.setTimeout(
+        () => setDiceFace(face),
+        Math.round((rollDuration / faceSequence.length) * index),
+      );
+    });
     window.setTimeout(() => {
-      const value = Math.floor(Math.random() * 4) + 2;
+      setDiceFace(value);
       setDiceValue(value);
       setMovesLeft(value);
       setDiceRolling(false);
       setBoardNotice(
-        `Move up to ${value} rooms. Connected doorways are glowing.`,
+        value === 1
+          ? "You rolled 1. Choose one glowing corridor."
+          : `You rolled ${value}. Move through up to ${value} connected corridors.`,
       );
-    }, reducedMotion ? 80 : 620);
+    }, rollDuration);
   };
 
   const movePawn = (room: Room) => {
     if (!hasRolled || movesLeft < 1 || !reachableRooms.includes(room.id)) return;
     setPawnRooms((current) => ({ ...current, you: room.id }));
+    setPathThisTurn((current) => [...current, room.id]);
     setMovesLeft((current) => current - 1);
     setSearchedThisTurn(false);
     setBoardNotice(
@@ -445,7 +556,9 @@ export default function Home() {
     });
     setRound((current) => current + 1);
     setDiceValue(null);
+    setDiceFace(6);
     setMovesLeft(0);
+    setPathThisTurn([pawnRooms.you]);
     setSearchedThisTurn(false);
     setBoardNotice("The other detectives have moved. Your turn begins again.");
     playChime(soundOn);
@@ -454,7 +567,9 @@ export default function Home() {
   const restartBoard = () => {
     setRound(1);
     setDiceValue(null);
+    setDiceFace(6);
     setMovesLeft(0);
+    setPathThisTurn(["hall"]);
     setSearchedThisTurn(false);
     setEventIndex(null);
     setInvestigated([]);
@@ -742,6 +857,23 @@ export default function Home() {
             <small>{round >= 8 ? "Midnight is here — seal a theory." : `${8 - round} rounds until midnight`}</small>
           </div>
 
+          <ol className="turn-phase-rail" aria-label={`Turn phase: ${turnPhase}`}>
+            {turnPhases.map((phase, index) => (
+              <li
+                key={phase.id}
+                className={`${phase.id === turnPhase ? "active" : ""} ${
+                  index < turnPhaseIndex ? "complete" : ""
+                }`}
+              >
+                <span>{index < turnPhaseIndex ? <Check size={14} /> : index + 1}</span>
+                <div>
+                  <strong>{phase.label}</strong>
+                  <small>{phase.detail}</small>
+                </div>
+              </li>
+            ))}
+          </ol>
+
           <div className="tabletop-layout">
             <aside className="turn-panel" aria-label="Detective turn order">
               <div className="panel-label">
@@ -786,15 +918,24 @@ export default function Home() {
               <div className="manor-board" aria-label="Interactive Blackthorn Manor board">
                 <div className="board-fold vertical" aria-hidden="true" />
                 <div className="board-fold horizontal" aria-hidden="true" />
+                <div className="corridor-network" aria-hidden="true">
+                  <i className="corridor horizontal row-one" />
+                  <i className="corridor horizontal row-two" />
+                  <i className="corridor horizontal row-three" />
+                  <i className="corridor vertical column-one" />
+                  <i className="corridor vertical column-two" />
+                  <i className="corridor vertical column-three" />
+                </div>
                 <div className="board-center-seal" aria-hidden="true">
                   <Eye size={22} />
                 </div>
-                {rooms.map((room) => {
+                {rooms.map((room, roomIndex) => {
                   const Icon = room.icon;
                   const found = investigated.includes(room.id);
                   const occupied = detectives.filter(
                     (detective) => pawnRooms[detective.id] === room.id,
                   );
+                  const pathStep = pathThisTurn.lastIndexOf(room.id);
                   const reachable =
                     hasRolled && movesLeft > 0 && reachableRooms.includes(room.id);
                   const current = pawnRooms.you === room.id;
@@ -803,7 +944,9 @@ export default function Home() {
                       key={room.id}
                       className={`board-room ${found ? "discovered" : ""} ${
                         reachable ? "reachable" : ""
-                      } ${current ? "current" : ""}`}
+                      } ${current ? "current" : ""} ${
+                        pathStep >= 0 ? "turn-path" : ""
+                      }`}
                       style={{
                         gridArea: room.area,
                         "--room-hue": room.hue,
@@ -814,6 +957,9 @@ export default function Home() {
                         reachable ? ", reachable" : ""
                       }`}
                     >
+                      <span className="room-tile-number" aria-hidden="true">
+                        {String(roomIndex + 1).padStart(2, "0")}
+                      </span>
                       <span className="board-room-icon">
                         <Icon size={17} strokeWidth={1.5} />
                       </span>
@@ -829,10 +975,17 @@ export default function Home() {
                             title={detective.name}
                             style={{ "--player-color": detective.color } as CSSProperties}
                           >
-                            {detective.initials.slice(0, 1)}
+                            <span className="pawn-head" />
+                            <span className="pawn-body" />
+                            <b>{detective.initials.slice(0, 1)}</b>
                           </i>
                         ))}
                       </span>
+                      {pathStep > 0 && (
+                        <span className="path-step" aria-hidden="true">
+                          {pathStep}
+                        </span>
+                      )}
                       {reachable && <span className="doorway-pulse" />}
                     </button>
                   );
@@ -842,6 +995,11 @@ export default function Home() {
                 <Footprints size={15} />
                 {boardNotice}
               </p>
+              <div className="board-key" aria-label="Board key">
+                <span><i className="key-pawn" /> Detective pawn</span>
+                <span><i className="key-door" /> Open corridor</span>
+                <span><i className="key-clue"><Check size={9} /></i> Clue secured</span>
+              </div>
             </div>
 
             <aside className="action-console" aria-label="Turn actions">
@@ -849,15 +1007,32 @@ export default function Home() {
                 <span>Action tray</span>
                 <Dices size={15} />
               </div>
-              <button
-                className={`brass-die ${diceRolling ? "rolling" : ""}`}
-                onClick={rollDice}
-                disabled={hasRolled || diceRolling}
-                aria-label={hasRolled ? `Rolled ${diceValue}` : "Roll the movement die"}
-              >
-                <span>{diceRolling ? "?" : diceValue ?? "ROLL"}</span>
-                <small>{hasRolled ? "Movement" : "Brass die"}</small>
-              </button>
+              <div className="dice-tray">
+                <span className="tray-title">Movement tray</span>
+                <button
+                  className={`brass-die ${diceRolling ? "rolling" : ""}`}
+                  onClick={rollDice}
+                  disabled={hasRolled || diceRolling}
+                  aria-label={hasRolled ? `Rolled ${diceValue}` : "Roll the six-sided movement die"}
+                >
+                  <span className="die-face" aria-hidden="true">
+                    {Array.from({ length: 9 }).map((_, index) => (
+                      <i
+                        key={index}
+                        className={dicePips[diceRolling ? diceFace : diceValue ?? 6].includes(index) ? "pip" : ""}
+                      />
+                    ))}
+                  </span>
+                </button>
+                <strong className="roll-readout">
+                  {diceRolling
+                    ? "Rolling..."
+                    : hasRolled
+                      ? `${diceValue} corridor${diceValue === 1 ? "" : "s"}`
+                      : "Tap the die"}
+                </strong>
+                <small>{soundOn ? "Rattle and landing sound on" : "Sound is muted"}</small>
+              </div>
 
               <div className="turn-actions">
                 <button
@@ -898,7 +1073,7 @@ export default function Home() {
               <div className={`manor-card ${eventIndex !== null ? "revealed" : ""}`}>
                 <div className="card-back">
                   <Eye size={24} />
-                  <span>MANOR</span>
+                  <span>MANOR EVENT</span>
                 </div>
                 <div className="card-face">
                   <small>Manor event</small>

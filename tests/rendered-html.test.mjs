@@ -71,10 +71,18 @@ test("keeps the full tabletop case and accessibility controls in source", async 
   }
 
   assert.match(page, /const rollDice/);
+  assert.match(page, /function playDiceRoll/);
+  assert.match(page, /createBuffer\(/);
+  assert.match(page, /Math\.floor\(Math\.random\(\) \* 6\) \+ 1/);
+  assert.match(page, /dicePips/);
   assert.match(page, /const movePawn/);
   assert.match(page, /const searchCurrentRoom/);
   assert.match(page, /const endBoardTurn/);
   assert.match(page, /Interactive Blackthorn Manor board/);
+  assert.match(page, /turn-phase-rail/);
+  assert.match(page, /corridor-network/);
+  assert.match(page, /pawn-head/);
+  assert.match(page, /Movement tray/);
   assert.match(page, /manorEvents/);
   assert.match(page, /You \+ 3 manor minds/);
   assert.match(page, /selectedSuspect === "celia"/);
@@ -85,6 +93,11 @@ test("keeps the full tabletop case and accessibility controls in source", async 
   assert.match(page, /captionsOn/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
   assert.match(css, /\.manor-board/);
+  assert.match(css, /\.turn-phase-rail/);
+  assert.match(css, /\.corridor-network/);
+  assert.match(css, /\.pawn-head/);
+  assert.match(css, /\.dice-tray/);
+  assert.match(css, /\.die-face i\.pip/);
   assert.match(css, /\.brass-die/);
   assert.match(css, /@keyframes roll-die/);
   assert.match(packageJson, /"lucide-react"/);

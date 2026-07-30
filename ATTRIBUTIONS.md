@@ -13,5 +13,6 @@ with OpenAI image generation. It contains no third-party game artwork or logos.
 
 ## Original audio
 
-Interface chimes are synthesized at runtime with the Web Audio API and do not
-use third-party recordings.
+Interface chimes and the layered dice rattle, impacts, and landing sound are
+synthesized at runtime with the Web Audio API and do not use third-party
+recordings.
