@@ -2544,18 +2544,14 @@ export default function Home() {
 
             <div className="veil-sigil" aria-hidden="true">
               <span className="sigil-aura" />
-              <span className="sigil-diamond diamond-outer" />
-              <span className="sigil-diamond diamond-inner" />
-              <span className="sigil-crown">
-                <i />
-                <i />
-                <i />
-              </span>
-              <span className="sigil-letter">V</span>
-              <span className="sigil-eye-shell">
-                <Eye size={35} strokeWidth={1.15} />
-                <i />
-              </span>
+              <span className="sigil-shadow-disc" />
+              <span
+                className="sigil-crest-art"
+                style={{
+                  backgroundImage: "url('./branding/veil-sigil-v2.png')",
+                }}
+              />
+              <span className="sigil-glint" />
               <span className="sigil-keyhole" />
             </div>
 

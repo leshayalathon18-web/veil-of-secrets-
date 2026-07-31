@@ -661,62 +661,6 @@ input:focus-visible {
 .opening::before { left: 4%; }
 .opening::after { right: 4%; }
 
-.opening-crest {
-  position: relative;
-  width: 230px;
-  height: 120px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 18px;
-}
-
-.opening-crest::before,
-.opening-crest::after {
-  position: absolute;
-  inset: 10px 65px;
-  content: "";
-  border: 1px solid rgba(203, 167, 90, 0.38);
-  transform: rotate(45deg);
-}
-
-.opening-crest::after {
-  inset: 25px 80px;
-  border-color: rgba(136, 31, 47, 0.75);
-}
-
-.crest-v {
-  position: relative;
-  z-index: 2;
-  margin-top: -8px;
-  color: var(--gold-bright);
-  font-family: var(--font-display), Georgia, serif;
-  font-size: 4.6rem;
-  line-height: 1;
-  text-shadow: 0 0 40px rgba(203, 167, 90, 0.22);
-}
-
-.crest-eye {
-  position: absolute;
-  z-index: 3;
-  bottom: 4px;
-  color: var(--crimson-bright);
-  background: var(--ink);
-  padding: 5px;
-  border-radius: 50%;
-}
-
-.crest-line {
-  position: absolute;
-  bottom: 18px;
-  width: 76px;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--gold));
-}
-
-.crest-line.left { left: -3px; }
-.crest-line.right { right: -3px; transform: rotate(180deg); }
-
 .eyebrow {
   margin: 0 0 14px;
   color: var(--gold);
@@ -4232,145 +4176,76 @@ input:focus-visible {
   animation: sigil-breathe 3.8s 2s ease-in-out infinite;
 }
 
-.sigil-diamond {
+.sigil-shadow-disc {
   position: absolute;
-  transform: rotate(45deg);
-  border: 1px solid rgba(227, 200, 120, 0.75);
-  background: linear-gradient(135deg, rgba(25, 13, 15, 0.88), rgba(4, 4, 5, 0.92));
+  inset: 14%;
+  border: 1px solid rgba(227, 200, 120, 0.14);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(24, 12, 15, 0.98) 0 39%, rgba(8, 6, 8, 0.88) 66%, transparent 67%),
+    conic-gradient(from 45deg, transparent, rgba(136, 31, 47, 0.22), transparent 28%, rgba(203, 167, 90, 0.16), transparent 66%);
   box-shadow:
-    inset 0 0 28px rgba(203, 167, 90, 0.08),
-    0 0 34px rgba(136, 31, 47, 0.14);
+    inset 0 0 26px rgba(0, 0, 0, 0.7),
+    0 0 36px rgba(136, 31, 47, 0.22);
+  animation: crest-halo-turn 18s linear infinite;
 }
 
-.diamond-outer {
-  inset: 16%;
-  border-width: 2px;
-}
-
-.diamond-outer::before,
-.diamond-outer::after {
+.sigil-shadow-disc::after {
   position: absolute;
-  inset: 8px;
-  content: "";
-  border: 1px solid rgba(136, 31, 47, 0.66);
-}
-
-.diamond-outer::after {
-  inset: -7px;
-  border-color: rgba(227, 200, 120, 0.2);
-}
-
-.diamond-inner {
-  inset: 29%;
-  border-color: rgba(227, 200, 120, 0.24);
-  background: #090709;
-}
-
-.sigil-crown {
-  position: absolute;
-  top: 6%;
-  z-index: 4;
-  width: 52%;
-  height: 22%;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 7%;
-  border-bottom: 1px solid rgba(227, 200, 120, 0.72);
-}
-
-.sigil-crown i {
-  width: 2px;
-  height: 55%;
-  transform: rotate(-18deg);
-  transform-origin: bottom;
-  background: var(--gold);
-}
-
-.sigil-crown i:nth-child(2) { height: 90%; transform: none; }
-.sigil-crown i:nth-child(3) { transform: rotate(18deg); }
-
-.sigil-crown i::before {
-  position: absolute;
-  top: -3px;
-  width: 5px;
-  height: 5px;
+  inset: 8%;
   content: "";
   border-radius: 50%;
-  transform: translateX(-2px);
-  background: var(--gold-bright);
-  box-shadow: 0 0 8px rgba(227, 200, 120, 0.65);
+  border: 1px solid rgba(203, 167, 90, 0.11);
 }
 
-.sigil-letter {
-  position: relative;
+.sigil-crest-art {
+  position: absolute;
   z-index: 3;
-  margin-top: -5%;
-  color: transparent;
-  font-family: var(--font-display), Georgia, serif;
-  font-size: clamp(5rem, 13vh, 8.1rem);
-  font-weight: 500;
-  line-height: 1;
-  -webkit-text-stroke: 1px rgba(240, 216, 151, 0.9);
-  background: linear-gradient(100deg, #85601e, #f1dda2 45%, #b58a38 62%, #66410e);
-  background-clip: text;
-  filter: drop-shadow(0 4px 2px #000);
-  text-shadow: 0 0 22px rgba(227, 200, 120, 0.12);
+  inset: -8%;
+  background-position: center;
+  background-size: contain;
+  background-repeat: no-repeat;
+  filter:
+    drop-shadow(0 8px 6px rgba(0, 0, 0, 0.78))
+    drop-shadow(0 0 9px rgba(203, 167, 90, 0.2));
+  animation: crest-idle 5.4s 2.1s ease-in-out infinite;
 }
 
-.sigil-letter::after {
+.sigil-glint {
   position: absolute;
-  inset: 0;
-  content: "V";
-  color: transparent;
-  -webkit-text-stroke: 1px rgba(255, 245, 202, 0.28);
-  transform: translateX(2px);
+  z-index: 4;
+  inset: 9% 20%;
+  overflow: hidden;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  pointer-events: none;
 }
 
-.sigil-eye-shell {
+.sigil-glint::after {
   position: absolute;
-  z-index: 5;
-  bottom: 22%;
-  width: 62%;
-  height: 29%;
-  display: grid;
-  place-items: center;
-  color: #d1a859;
-  border: 1px solid rgba(227, 200, 120, 0.62);
-  border-radius: 60% 10% 60% 10%;
-  transform: rotate(-2deg);
-  background: #0a0709;
-  box-shadow:
-    0 0 0 4px rgba(6, 5, 6, 0.68),
-    0 0 20px rgba(136, 31, 47, 0.36);
-}
-
-.sigil-eye-shell svg {
-  width: 43%;
-  color: var(--crimson-bright);
-  filter: drop-shadow(0 0 6px rgba(179, 50, 69, 0.62));
-  animation: sigil-watch 7s 2.2s ease-in-out infinite;
-}
-
-.sigil-eye-shell i {
-  position: absolute;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #f7e6b6;
-  box-shadow: 0 0 9px #f7e6b6;
+  top: -22%;
+  bottom: -22%;
+  left: -38%;
+  width: 18%;
+  content: "";
+  transform: rotate(18deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 244, 205, 0.55), transparent);
+  filter: blur(1px);
+  animation: crest-glint 5.8s 2.8s ease-in-out infinite;
 }
 
 .sigil-keyhole {
   position: absolute;
-  z-index: 6;
-  bottom: 7%;
-  width: 10px;
-  height: 20px;
-  border: 1px solid rgba(227, 200, 120, 0.75);
+  z-index: 5;
+  top: 48%;
+  width: 9px;
+  height: 19px;
+  border: 1px solid rgba(244, 222, 161, 0.86);
   clip-path: polygon(50% 0, 80% 18%, 78% 42%, 100% 100%, 0 100%, 22% 42%, 20% 18%);
-  background: var(--crimson);
-  box-shadow: 0 0 13px rgba(179, 50, 69, 0.7);
+  transform: translateY(-50%);
+  background: #080607;
+  box-shadow:
+    0 0 0 4px rgba(8, 6, 7, 0.62),
+    0 0 13px rgba(179, 50, 69, 0.64);
 }
 
 .opening h1 {
@@ -4649,9 +4524,19 @@ input:focus-visible {
   to { opacity: 0.72; transform: scale(1.12); }
 }
 
-@keyframes sigil-watch {
-  0%, 41%, 45%, 100% { transform: scaleY(1); }
-  43% { transform: scaleY(0.08); }
+@keyframes crest-idle {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-4px) scale(1.012); }
+}
+
+@keyframes crest-glint {
+  0%, 66% { transform: translateX(0) rotate(18deg); opacity: 0; }
+  72% { opacity: 0.9; }
+  88%, 100% { transform: translateX(540%) rotate(18deg); opacity: 0; }
+}
+
+@keyframes crest-halo-turn {
+  to { transform: rotate(360deg); }
 }
 
 @keyframes title-reveal {

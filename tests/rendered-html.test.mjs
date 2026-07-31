@@ -96,6 +96,9 @@ test("keeps the full tabletop case and accessibility controls in source", async 
   assert.match(page, /const enterManor/);
   assert.match(page, /openingDeparting/);
   assert.match(page, /veil-sigil/);
+  assert.match(page, /sigil-crest-art/);
+  assert.match(page, /veil-sigil-v2\.png/);
+  assert.doesNotMatch(page, /sigil-eye-shell/);
   assert.match(page, /velvet-curtain/);
   assert.match(page, /opening-embers/);
   assert.match(page, /function playDiceRoll/);
@@ -145,6 +148,8 @@ test("keeps the full tabletop case and accessibility controls in source", async 
   assert.match(css, /@keyframes pawn-visible-step/);
   assert.match(css, /\.opening-cinematic-bg/);
   assert.match(css, /\.veil-sigil/);
+  assert.match(css, /@keyframes crest-glint/);
+  assert.doesNotMatch(css, /\.sigil-eye-shell|\.crest-eye/);
   assert.match(css, /\.velvet-curtain/);
   assert.match(css, /@keyframes curtain-open-left/);
   assert.match(css, /@keyframes title-metal-shimmer/);
@@ -163,4 +168,5 @@ test("keeps the full tabletop case and accessibility controls in source", async 
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
   await access(new URL("../public/audio/dice-roll-wood.mp3", import.meta.url));
   await access(new URL("../public/characters/blackthorn-cast-sheet.png", import.meta.url));
+  await access(new URL("../public/branding/veil-sigil-v2.png", import.meta.url));
 });

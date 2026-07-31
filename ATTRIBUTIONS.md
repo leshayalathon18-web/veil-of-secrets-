@@ -19,6 +19,11 @@ or other real people.
 The multiplayer key art in `public/og-multiplayer.png` was created from those
 original character designs with OpenAI image generation.
 
+The gold V, crimson veil, and keyhole crest in
+`public/branding/veil-sigil-v2.png` was created specifically for Veil of
+Secrets with OpenAI image generation. It contains no third-party artwork or
+logos.
+
 ## Audio
 
 Interface chimes are synthesized at runtime with the Web Audio API.
