@@ -82,6 +82,14 @@ test("keeps the full tabletop case and accessibility controls in source", async 
   assert.match(page, /const rollDice/);
   assert.match(page, /startHosting/);
   assert.match(page, /joinFriendGame/);
+  assert.match(page, /ROOM_CODE_LENGTH = 6/);
+  assert.match(page, /createRoomCode/);
+  assert.match(page, /hashRoomPassword/);
+  assert.match(page, /Copy invitation/);
+  assert.match(page, /Round password/);
+  assert.match(page, /peer\.reconnect\(\)/);
+  assert.match(page, /visibilitychange/);
+  assert.doesNotMatch(page, /Direct browser-to-browser play/);
   assert.match(page, /animateBotTurns/);
   assert.match(page, /Visible move ledger/);
   assert.match(page, /portraitIndex/);

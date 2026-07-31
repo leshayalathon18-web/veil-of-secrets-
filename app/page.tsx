@@ -1392,7 +1392,13 @@ type Detective = (typeof detectiveRoster)[number];
 const initialDetectives = detectiveRoster.slice(0, 4);
 
 type NetworkRole = "solo" | "host" | "guest";
-type NetworkStatus = "offline" | "opening" | "waiting" | "connected" | "error";
+type NetworkStatus =
+  | "offline"
+  | "opening"
+  | "waiting"
+  | "connected"
+  | "reconnecting"
+  | "error";
 type GameSnapshot = {
   scene: Scene;
   caseVariant: number;
@@ -1413,7 +1419,33 @@ type GameSnapshot = {
 
 type NetworkMessage =
   | { type: "snapshot"; snapshot: GameSnapshot }
-  | { type: "hello"; name: string };
+  | { type: "hello"; name: string }
+  | { type: "welcome"; name: string }
+  | { type: "join-denied"; reason: "password" | "full" };
+
+const ROOM_CODE_LENGTH = 6;
+const ROOM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const ROOM_PEER_PREFIX = "veil-blackthorn-";
+
+function createRoomCode() {
+  const random = new Uint32Array(ROOM_CODE_LENGTH);
+  window.crypto.getRandomValues(random);
+  return Array.from(
+    random,
+    (value) => ROOM_CODE_ALPHABET[value % ROOM_CODE_ALPHABET.length],
+  ).join("");
+}
+
+function normalizeRoomCode(value: string) {
+  return value
+    .toUpperCase()
+    .replace(/[^A-Z2-9]/g, "")
+    .slice(0, ROOM_CODE_LENGTH);
+}
+
+function roomPeerId(code: string) {
+  return `${ROOM_PEER_PREFIX}${code.toLowerCase()}`;
+}
 
 const portraitStyle = (portraitIndex: number) =>
   ({
@@ -1614,6 +1646,34 @@ function readPreference(key: string, fallback: boolean) {
   }
 }
 
+async function hashRoomPassword(password: string) {
+  const normalized = password.trim();
+  if (!normalized) return "";
+  const bytes = new TextEncoder().encode(`veil-of-secrets:${normalized}`);
+  const digest = await window.crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+}
+
+async function copyText(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const field = document.createElement("textarea");
+    field.value = text;
+    field.setAttribute("readonly", "");
+    field.style.position = "fixed";
+    field.style.opacity = "0";
+    document.body.appendChild(field);
+    field.select();
+    const copied = document.execCommand("copy");
+    field.remove();
+    return copied;
+  }
+}
+
 function quietRoomEvidence(room: Room, caseFile: CaseFile, caseIndex: number): EvidenceVariant {
   const observations = [
     {
@@ -1685,14 +1745,27 @@ export default function Home() {
   const [networkRole, setNetworkRole] = useState<NetworkRole>("solo");
   const [networkStatus, setNetworkStatus] = useState<NetworkStatus>("offline");
   const [joinCode, setJoinCode] = useState("");
+  const [roomCode, setRoomCode] = useState("");
+  const [hostPassword, setHostPassword] = useState("");
+  const [joinPassword, setJoinPassword] = useState("");
+  const [roomPasswordProtected, setRoomPasswordProtected] = useState(false);
+  const [inviteNeedsPassword, setInviteNeedsPassword] = useState(false);
   const [inviteLink, setInviteLink] = useState("");
   const [friendConnected, setFriendConnected] = useState(false);
   const [friendName, setFriendName] = useState("Guest investigator");
-  const [copyConfirmed, setCopyConfirmed] = useState(false);
+  const [copyConfirmed, setCopyConfirmed] = useState<"link" | "code" | null>(null);
+  const [networkError, setNetworkError] = useState("");
   const peerRef = useRef<Peer | null>(null);
   const connectionRef = useRef<DataConnection | null>(null);
   const snapshotRef = useRef<GameSnapshot | null>(null);
   const applyingRemoteRef = useRef(false);
+  const roomPasswordHashRef = useRef("");
+  const guestTargetRef = useRef<{ hostId: string; passwordHash: string } | null>(null);
+  const reconnectTimerRef = useRef<number | null>(null);
+  const joinFriendGameRef = useRef<
+    (codeOverride?: string, passwordOverride?: string) => Promise<void>
+  >(async () => {});
+  const reconnectGuestRef = useRef<() => void>(() => {});
 
   const evidenceCount = investigated.length;
   const canAccuse = evidenceCount >= 4;
@@ -1745,22 +1818,55 @@ export default function Home() {
   }, [soundOn, largeText, reducedMotion, captionsOn]);
 
   useEffect(() => {
-    const room = new URLSearchParams(window.location.search).get("room");
+    const parameters = new URLSearchParams(window.location.search);
+    const room = parameters.get("room");
     if (!room) return;
+    const compactCode = normalizeRoomCode(room);
+    const locked = parameters.get("locked") === "1";
     const timer = window.setTimeout(() => {
-      setJoinCode(room);
+      setJoinCode(compactCode || room);
+      setInviteNeedsPassword(locked);
       setScene("lobby");
+      if (!locked) {
+        void joinFriendGameRef.current(compactCode || room, "");
+      }
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(
     () => () => {
+      if (reconnectTimerRef.current !== null) {
+        window.clearTimeout(reconnectTimerRef.current);
+      }
       connectionRef.current?.close();
       peerRef.current?.destroy();
     },
     [],
   );
+
+  useEffect(() => {
+    const restoreSignaling = () => {
+      const peer = peerRef.current;
+      if (!peer || peer.destroyed || !peer.disconnected) return;
+      setNetworkStatus("reconnecting");
+      try {
+        peer.reconnect();
+      } catch {
+        setNetworkStatus("error");
+        setNetworkError("Tap Join table or Create room again to restore the table.");
+      }
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") restoreSignaling();
+    };
+    window.addEventListener("online", restoreSignaling);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.removeEventListener("online", restoreSignaling);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, []);
 
   useEffect(() => {
     const snapshot: GameSnapshot = {
@@ -1815,13 +1921,22 @@ export default function Home() {
   const disconnectNetwork = () => {
     const connection = connectionRef.current;
     const peer = peerRef.current;
+    if (reconnectTimerRef.current !== null) {
+      window.clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
     connectionRef.current = null;
     peerRef.current = null;
+    guestTargetRef.current = null;
+    roomPasswordHashRef.current = "";
     connection?.close();
     peer?.destroy();
     setFriendConnected(false);
     setNetworkRole("solo");
     setNetworkStatus("offline");
+    setNetworkError("");
+    setRoomCode("");
+    setRoomPasswordProtected(false);
     setInviteLink("");
   };
 
@@ -1847,23 +1962,51 @@ export default function Home() {
   const bindConnection = (connection: DataConnection, role: NetworkRole) => {
     connectionRef.current?.close();
     connectionRef.current = connection;
+    let connectionAccepted = role === "host";
     connection.on("open", () => {
-      setNetworkStatus("connected");
-      setFriendConnected(true);
+      if (connectionRef.current !== connection) return;
+      setNetworkError("");
       connection.send({
         type: "hello",
         name: role === "guest" ? "Invited investigator" : "Host investigator",
       } satisfies NetworkMessage);
+      if (role === "host") {
+        setNetworkStatus("connected");
+        setFriendConnected(true);
+        connection.send({
+          type: "welcome",
+          name: "Host investigator",
+        } satisfies NetworkMessage);
+      }
       if (role === "host" && snapshotRef.current) {
         connection.send({
           type: "snapshot",
           snapshot: snapshotRef.current,
         } satisfies NetworkMessage);
       }
-      playChime(soundOn, true);
+      if (role === "host") playChime(soundOn, true);
     });
     connection.on("data", (data) => {
       const message = data as NetworkMessage;
+      if (message?.type === "welcome" && role === "guest") {
+        connectionAccepted = true;
+        setNetworkStatus("connected");
+        setFriendConnected(true);
+        setFriendName(message.name);
+        setNetworkError("");
+        playChime(soundOn, true);
+      }
+      if (message?.type === "join-denied" && role === "guest") {
+        connectionAccepted = false;
+        setFriendConnected(false);
+        setNetworkStatus("error");
+        setNetworkError(
+          message.reason === "password"
+            ? "That round password is not correct. Check it and try again."
+            : "That room already has two investigators. Ask the host for a new room.",
+        );
+        connection.close();
+      }
       if (message?.type === "snapshot" && message.snapshot) {
         applyRemoteSnapshot(message.snapshot);
       }
@@ -1872,15 +2015,30 @@ export default function Home() {
       }
     });
     connection.on("close", () => {
+      if (connectionRef.current !== connection) return;
       connectionRef.current = null;
       setFriendConnected(false);
-      setNetworkStatus(role === "host" ? "waiting" : "error");
+      setNetworkStatus(
+        role === "host" ? "waiting" : connectionAccepted ? "reconnecting" : "error",
+      );
       setActivePlayerId("you");
-      setBoardNotice("Your friend disconnected. The manor bots will finish the case.");
+      setBoardNotice(
+        role === "host"
+          ? "Your friend stepped away. Their seat is saved while the room stays open."
+          : "The connection paused. Restoring your seat at the Blackthorn table.",
+      );
+      if (role === "guest" && connectionAccepted) {
+        reconnectTimerRef.current = window.setTimeout(
+          () => reconnectGuestRef.current(),
+          1200,
+        );
+      }
     });
     connection.on("error", () => {
+      if (connectionRef.current !== connection) return;
       setNetworkStatus("error");
       setFriendConnected(false);
+      setNetworkError("The connection paused. Tap Join table to try again.");
     });
   };
 
@@ -1888,55 +2046,182 @@ export default function Home() {
     disconnectNetwork();
     setNetworkRole("host");
     setNetworkStatus("opening");
+    setNetworkError("");
     try {
       const { Peer: PeerClient } = await import("peerjs");
-      const peer = new PeerClient();
+      const code = createRoomCode();
+      const passwordHash = await hashRoomPassword(hostPassword);
+      const peer = new PeerClient(roomPeerId(code));
       peerRef.current = peer;
-      peer.on("open", (id) => {
+      roomPasswordHashRef.current = passwordHash;
+      setRoomCode(code);
+      setRoomPasswordProtected(Boolean(passwordHash));
+      peer.on("open", () => {
         const url = new URL(window.location.href);
         url.search = "";
-        url.searchParams.set("room", id);
+        url.searchParams.set("room", code);
+        if (passwordHash) url.searchParams.set("locked", "1");
         setInviteLink(url.toString());
         setNetworkStatus("waiting");
       });
-      peer.on("connection", (connection) => bindConnection(connection, "host"));
-      peer.on("error", () => setNetworkStatus("error"));
+      peer.on("connection", (connection) => {
+        const metadata = connection.metadata as
+          | { passwordHash?: string }
+          | undefined;
+        const roomIsFull = Boolean(connectionRef.current?.open);
+        const wrongPassword =
+          (metadata?.passwordHash ?? "") !== roomPasswordHashRef.current;
+        if (roomIsFull || wrongPassword) {
+          connection.on("open", () => {
+            connection.send({
+              type: "join-denied",
+              reason: roomIsFull ? "full" : "password",
+            } satisfies NetworkMessage);
+            window.setTimeout(() => connection.close(), 260);
+          });
+          return;
+        }
+        bindConnection(connection, "host");
+      });
+      peer.on("disconnected", () => {
+        if (peerRef.current !== peer || peer.destroyed) return;
+        setNetworkStatus("reconnecting");
+        try {
+          peer.reconnect();
+        } catch {
+          setNetworkStatus("error");
+          setNetworkError("Tap Create room again to reopen the table.");
+        }
+      });
+      peer.on("error", (error) => {
+        if (peerRef.current !== peer) return;
+        setNetworkStatus("error");
+        setNetworkError(
+          error.type === "unavailable-id"
+            ? "That short code was just claimed. Tap Create room once more."
+            : "The room could not open. Check your connection and try again.",
+        );
+      });
     } catch {
       setNetworkStatus("error");
+      setNetworkError("The room could not open. Check your connection and try again.");
     }
   };
 
-  const joinFriendGame = async () => {
-    const rawCode = joinCode.trim();
-    if (!rawCode) return;
-    let hostId = rawCode;
-    try {
-      hostId = new URL(rawCode).searchParams.get("room") ?? rawCode;
-    } catch {
-      // A bare peer code is already valid.
+  const connectGuest = (
+    peer: Peer,
+    hostId: string,
+    passwordHash: string,
+  ) => {
+    if (connectionRef.current?.open) return;
+    setNetworkStatus("opening");
+    setNetworkError("");
+    const connection = peer.connect(hostId, {
+      reliable: true,
+      metadata: { passwordHash },
+    });
+    bindConnection(connection, "guest");
+  };
+
+  const reconnectGuest = () => {
+    const peer = peerRef.current;
+    const target = guestTargetRef.current;
+    if (!peer || peer.destroyed || !target) {
+      setNetworkStatus("error");
+      setNetworkError("Tap Join table to restore your seat.");
+      return;
     }
+    if (peer.disconnected) {
+      try {
+        peer.reconnect();
+      } catch {
+        setNetworkStatus("error");
+        setNetworkError("Tap Join table to restore your seat.");
+      }
+      return;
+    }
+    connectGuest(peer, target.hostId, target.passwordHash);
+  };
+
+  const joinFriendGame = async (
+    codeOverride?: string,
+    passwordOverride?: string,
+  ) => {
+    const rawCode = (codeOverride ?? joinCode).trim();
+    if (!rawCode) return;
+    let roomValue = rawCode;
+    let lockedFromLink = false;
+    try {
+      const invitation = new URL(rawCode);
+      roomValue = invitation.searchParams.get("room") ?? rawCode;
+      lockedFromLink = invitation.searchParams.get("locked") === "1";
+    } catch {
+      // A six-character room code is already valid.
+    }
+    const compactCode = normalizeRoomCode(roomValue);
+    const isShortCode = compactCode.length === ROOM_CODE_LENGTH;
+    const hostId = isShortCode ? roomPeerId(compactCode) : roomValue;
+    const password = passwordOverride ?? joinPassword;
+    if ((inviteNeedsPassword || lockedFromLink) && !password.trim()) {
+      setScene("lobby");
+      setJoinCode(compactCode || roomValue);
+      setInviteNeedsPassword(true);
+      setNetworkStatus("offline");
+      setNetworkError("Enter the round password from your host, then tap Join table.");
+      return;
+    }
+    const passwordHash = await hashRoomPassword(password);
     disconnectNetwork();
     setNetworkRole("guest");
     setNetworkStatus("opening");
+    setJoinCode(compactCode || roomValue);
+    setInviteNeedsPassword(Boolean(passwordHash) || lockedFromLink);
+    guestTargetRef.current = { hostId, passwordHash };
     try {
       const { Peer: PeerClient } = await import("peerjs");
       const peer = new PeerClient();
       peerRef.current = peer;
       peer.on("open", () => {
-        const connection = peer.connect(hostId, { reliable: true });
-        bindConnection(connection, "guest");
+        const target = guestTargetRef.current;
+        if (target) connectGuest(peer, target.hostId, target.passwordHash);
       });
-      peer.on("error", () => setNetworkStatus("error"));
+      peer.on("disconnected", () => {
+        if (peerRef.current !== peer || peer.destroyed) return;
+        setNetworkStatus("reconnecting");
+        try {
+          peer.reconnect();
+        } catch {
+          setNetworkStatus("error");
+          setNetworkError("Tap Join table to restore your seat.");
+        }
+      });
+      peer.on("error", () => {
+        if (peerRef.current !== peer) return;
+        setNetworkStatus("error");
+        setNetworkError(
+          "Room not found yet. Ask the host to return to the lobby, then tap Join table again.",
+        );
+      });
     } catch {
       setNetworkStatus("error");
+      setNetworkError("The room could not connect. Check your connection and try again.");
     }
   };
+  useEffect(() => {
+    reconnectGuestRef.current = reconnectGuest;
+    joinFriendGameRef.current = joinFriendGame;
+  });
 
-  const copyInvite = async () => {
-    if (!inviteLink) return;
-    await navigator.clipboard.writeText(inviteLink);
-    setCopyConfirmed(true);
-    window.setTimeout(() => setCopyConfirmed(false), 1800);
+  const copyInvite = async (kind: "link" | "code") => {
+    const text = kind === "link" ? inviteLink : roomCode;
+    if (!text) return;
+    const copied = await copyText(text);
+    if (!copied) {
+      setNetworkError("Press and hold the room code to copy it manually.");
+      return;
+    }
+    setCopyConfirmed(kind);
+    window.setTimeout(() => setCopyConfirmed(null), 1800);
   };
 
   const moveTo = (next: Scene) => {
@@ -2465,8 +2750,8 @@ export default function Home() {
               <p className="eyebrow">Private table · Two investigators + manor bots</p>
               <h2 id="lobby-title">Invite a friend into the mystery.</h2>
               <p>
-                Create a link, send it to one friend, and watch every human and bot
-                pawn cross Blackthorn together.
+                Open a private room, copy the six-character code or invitation, and
+                watch every investigator cross Blackthorn together.
               </p>
             </div>
             <div className={`connection-seal status-${networkStatus}`}>
@@ -2477,13 +2762,23 @@ export default function Home() {
                   : networkStatus === "waiting"
                     ? "Invitation ready"
                     : networkStatus === "opening"
-                      ? "Opening the table"
+                      ? "Connecting"
+                      : networkStatus === "reconnecting"
+                        ? "Restoring the table"
                       : networkStatus === "error"
-                        ? "Connection interrupted"
+                        ? "Needs attention"
                         : "Table offline"}
               </strong>
               <small>
-                {friendConnected ? friendName : "Direct browser-to-browser play"}
+                {friendConnected
+                  ? `${friendName} · two-player table`
+                  : networkStatus === "waiting"
+                    ? `Room ${roomCode} is open`
+                    : networkStatus === "reconnecting"
+                      ? "Trying again automatically"
+                      : networkStatus === "opening"
+                        ? "Securing your private room"
+                        : "No account or download required"}
               </small>
             </div>
           </div>
@@ -2494,29 +2789,75 @@ export default function Home() {
                 <span className="invite-number">01</span>
                 <div>
                   <small>Host a table</small>
-                  <h3>Create an invitation</h3>
-                  <p>Your friend opens one link. No account or download is required.</p>
+                  <h3>Open a private room</h3>
+                  <p>
+                    Choose an optional password, then send the short code or copy-ready
+                    invitation.
+                  </p>
                 </div>
+                <label className="round-password-field" htmlFor="host-password">
+                  <span>
+                    <LockKeyhole size={14} />
+                    Round password <small>optional</small>
+                  </span>
+                  <input
+                    id="host-password"
+                    type="password"
+                    value={hostPassword}
+                    onChange={(event) => setHostPassword(event.target.value)}
+                    placeholder="Add a private password"
+                    maxLength={24}
+                    autoComplete="new-password"
+                    disabled={networkStatus === "waiting" || friendConnected}
+                  />
+                </label>
                 <button
                   className="primary-button"
                   onClick={startHosting}
                   disabled={networkStatus === "opening" || friendConnected}
                 >
                   <UsersRound size={17} />
-                  {inviteLink ? "Replace invitation" : "Create friend link"}
+                  {inviteLink ? "Create a new room" : "Create room"}
                 </button>
               </div>
 
               {inviteLink && (
                 <div className="invite-link-card">
-                  <div>
-                    <small>Private table link</small>
-                    <strong>{inviteLink}</strong>
+                  <div className="room-code-card">
+                    <small>Friend room code</small>
+                    <strong>{roomCode}</strong>
+                    <span>
+                      {roomPasswordProtected ? (
+                        <>
+                          <LockKeyhole size={12} /> Password protected
+                        </>
+                      ) : (
+                        <>
+                          <ShieldCheck size={12} /> Private invitation
+                        </>
+                      )}
+                    </span>
                   </div>
-                  <button className="secondary-button" onClick={copyInvite}>
-                    {copyConfirmed ? <Check size={17} /> : <KeyRound size={17} />}
-                    {copyConfirmed ? "Copied" : "Copy link"}
-                  </button>
+                  <div className="invite-copy-actions">
+                    <button
+                      className="primary-button"
+                      onClick={() => void copyInvite("link")}
+                    >
+                      {copyConfirmed === "link" ? (
+                        <Check size={17} />
+                      ) : (
+                        <KeyRound size={17} />
+                      )}
+                      {copyConfirmed === "link" ? "Invite copied" : "Copy invitation"}
+                    </button>
+                    <button
+                      className="secondary-button"
+                      onClick={() => void copyInvite("code")}
+                    >
+                      {copyConfirmed === "code" ? <Check size={16} /> : "ABC"}
+                      {copyConfirmed === "code" ? "Copied" : "Copy code"}
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -2527,29 +2868,50 @@ export default function Home() {
               </div>
 
               <div className="join-panel">
-                <label htmlFor="friend-code">Invitation link or table code</label>
-                <div>
+                <label htmlFor="friend-code">Join with a six-character room code</label>
+                <div className="join-fields">
                   <input
                     id="friend-code"
                     value={joinCode}
-                    onChange={(event) => setJoinCode(event.target.value)}
-                    placeholder="Paste your friend’s link"
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setJoinCode(
+                        value.includes("://") ? value : normalizeRoomCode(value),
+                      );
+                    }}
+                    placeholder="EXAMPLE: VEIL42"
                     autoComplete="off"
+                    autoCapitalize="characters"
+                    spellCheck={false}
+                    inputMode="text"
+                  />
+                  <input
+                    id="join-password"
+                    type="password"
+                    value={joinPassword}
+                    onChange={(event) => setJoinPassword(event.target.value)}
+                    placeholder={
+                      inviteNeedsPassword
+                        ? "Round password required"
+                        : "Password, if the host made one"
+                    }
+                    maxLength={24}
+                    autoComplete="current-password"
                   />
                   <button
                     className="secondary-button"
-                    onClick={joinFriendGame}
+                    onClick={() => void joinFriendGame()}
                     disabled={!joinCode.trim() || networkStatus === "opening"}
                   >
-                    Join table <ArrowRight size={17} />
+                    {networkStatus === "reconnecting" ? "Reconnect" : "Join table"}
+                    <ArrowRight size={17} />
                   </button>
                 </div>
               </div>
 
-              {networkStatus === "error" && (
+              {networkError && (
                 <p className="connection-error" role="alert">
-                  The table could not connect. Check that both players are online and
-                  that the host still has the lobby open, then try the invitation again.
+                  {networkError}
                 </p>
               )}
 
@@ -2567,8 +2929,10 @@ export default function Home() {
               </div>
 
               <p className="peer-note">
-                The invite service introduces the two browsers; game moves travel directly
-                between players. Keep this tab open while playing.
+                <ShieldCheck size={13} />
+                Tap <strong>Copy invitation</strong>, paste it in a message, then return
+                here. If your phone pauses the game while messaging, this room restores
+                when you come back. The host must keep the game tab open during play.
               </p>
             </div>
 

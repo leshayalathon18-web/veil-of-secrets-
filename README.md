@@ -17,7 +17,8 @@ The first-launch vertical slice includes:
 - Physical six-sided die with a licensed wooden-table roll recording
 - Ten-character detective roster that draws a different four-player table for each new case
 - Ten illustrated original character cards with biographies and investigation talents
-- Private two-player WebRTC invite links with bots filling the remaining seats
+- Private two-player rooms with six-character codes, optional round passwords,
+  copy-ready invitations, and automatic connection recovery
 - Synchronized dice, clue, turn, pawn, and movement-ledger state between both players
 - Visible step-by-step bot movement instead of instant pawn teleporting
 - Eleven distinct mystery cases with different victims, culprits, methods, motives, evidence trails, and verdicts
@@ -34,9 +35,9 @@ The first-launch vertical slice includes:
 
 ## Product direction
 
-The next production milestone strengthens connection recovery and adds
-server-authoritative public matchmaking, player-selected character abilities,
-discussion tools, voice controls, moderation, and progression.
+The next production milestone adds server-authoritative public matchmaking,
+player-selected character abilities, discussion tools, voice controls,
+moderation, and progression.
 
 See [docs/PRODUCT_BRIEF.md](docs/PRODUCT_BRIEF.md) and
 [docs/ROADMAP.md](docs/ROADMAP.md) for the source-of-truth design and delivery

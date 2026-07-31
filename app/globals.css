@@ -4860,7 +4860,8 @@ input:focus-visible {
   font-size: 0.58rem;
 }
 
-.connection-seal.status-waiting > span {
+.connection-seal.status-waiting > span,
+.connection-seal.status-reconnecting > span {
   background: var(--gold);
   box-shadow: 0 0 0 4px rgba(203, 167, 90, 0.12), 0 0 12px rgba(203, 167, 90, 0.4);
   animation: connection-pulse 1.2s ease-in-out infinite alternate;
@@ -4910,6 +4911,56 @@ input:focus-visible {
   justify-self: start;
 }
 
+.round-password-field {
+  grid-column: 2;
+  display: grid;
+  gap: 8px;
+}
+
+.round-password-field > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--gold);
+  font-size: 0.57rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.round-password-field > span small {
+  color: var(--muted-dark);
+  font-size: 0.48rem;
+  letter-spacing: 0.1em;
+}
+
+.round-password-field input,
+.join-panel input {
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 1px;
+  color: var(--paper);
+  outline: none;
+  background:
+    linear-gradient(90deg, rgba(203, 167, 90, 0.05), transparent 42%),
+    rgba(4, 4, 5, 0.76);
+  font: inherit;
+  font-size: 0.72rem;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease;
+}
+
+.round-password-field input:focus,
+.join-panel input:focus {
+  border-color: rgba(203, 167, 90, 0.66);
+  box-shadow: 0 0 0 3px rgba(203, 167, 90, 0.09);
+  background-color: rgba(13, 10, 11, 0.92);
+}
+
 .invite-number {
   grid-row: 1 / span 2;
   color: rgba(203, 167, 90, 0.34);
@@ -4944,34 +4995,54 @@ input:focus-visible {
 }
 
 .invite-link-card {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 14px;
-  padding: 14px;
-  border: 1px solid rgba(109, 192, 142, 0.26);
-  background: rgba(35, 85, 57, 0.11);
+  padding: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(203, 167, 90, 0.34);
+  background:
+    radial-gradient(circle at 8% 22%, rgba(203, 167, 90, 0.13), transparent 42%),
+    rgba(16, 13, 13, 0.92);
+  box-shadow: inset 0 0 28px rgba(0, 0, 0, 0.42);
 }
 
-.invite-link-card > div {
+.room-code-card {
   min-width: 0;
   display: grid;
-  gap: 6px;
+  gap: 5px;
 }
 
-.invite-link-card strong {
-  max-width: 310px;
-  overflow: hidden;
-  color: #b8c9bf;
-  font-size: 0.63rem;
+.room-code-card strong {
+  color: #f0d991;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(2rem, 4.7vw, 3.35rem);
   font-weight: 500;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  letter-spacing: 0.15em;
+  line-height: 1;
+  text-shadow: 0 0 20px rgba(203, 167, 90, 0.22);
 }
 
-.invite-link-card .secondary-button {
-  flex: none;
-  min-height: 42px;
+.room-code-card > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #a89d8f;
+  font-size: 0.56rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.invite-copy-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.invite-copy-actions button {
+  width: 100%;
+  min-height: 43px;
+  white-space: nowrap;
 }
 
 .invite-divider {
@@ -4995,25 +5066,26 @@ input:focus-visible {
   gap: 9px;
 }
 
-.join-panel > div {
+.join-fields {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(125px, 0.72fr) minmax(170px, 1fr) auto;
   gap: 8px;
 }
 
-.join-panel input {
-  min-width: 0;
-  min-height: 48px;
-  padding: 0 14px;
-  border: 1px solid var(--line);
-  border-radius: 1px;
-  color: var(--paper);
-  background: rgba(4, 4, 5, 0.76);
-  font: inherit;
-  font-size: 0.72rem;
+#friend-code {
+  color: #f0d991;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
 }
 
-.join-panel input::placeholder { color: #625b56; }
+.join-panel input::placeholder,
+.round-password-field input::placeholder {
+  color: #625b56;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+}
 
 .connection-error {
   margin: 0;
@@ -5033,10 +5105,23 @@ input:focus-visible {
 }
 
 .peer-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
   margin: 0;
   color: var(--muted-dark);
   font-size: 0.59rem;
   line-height: 1.55;
+}
+
+.peer-note svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--gold-dark);
+}
+
+.peer-note strong {
+  color: #a89d8f;
 }
 
 .cast-gallery {
@@ -5264,16 +5349,21 @@ input:focus-visible {
     width: 100%;
   }
 
+  .round-password-field {
+    grid-column: 1;
+  }
+
   .invite-link-card {
     align-items: stretch;
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
 
-  .invite-link-card strong {
-    max-width: 72vw;
+  .room-code-card strong {
+    max-width: none;
+    font-size: clamp(2.2rem, 13vw, 3.3rem);
   }
 
-  .join-panel > div,
+  .join-fields,
   .character-card-grid {
     grid-template-columns: 1fr;
   }
