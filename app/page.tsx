@@ -22,6 +22,7 @@ import {
   MapPin,
   Menu,
   Mic,
+  MicOff,
   Play,
   RotateCcw,
   Search,
@@ -34,7 +35,7 @@ import {
   VolumeX,
   X,
 } from "lucide-react";
-import type { DataConnection, Peer } from "peerjs";
+import type { DataConnection, MediaConnection, Peer } from "peerjs";
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 
 type Scene = "opening" | "rules" | "case" | "verdict" | "menu" | "lobby";
@@ -1395,6 +1396,8 @@ type Detective = (typeof detectiveRoster)[number];
 const initialDetectives = detectiveRoster.slice(0, 4);
 
 type NetworkRole = "solo" | "host" | "guest";
+type VoiceMode = "open" | "push";
+type VoiceStatus = "off" | "requesting" | "ready" | "connecting" | "live" | "error";
 type NetworkStatus =
   | "offline"
   | "opening"
@@ -1424,6 +1427,7 @@ type NetworkMessage =
   | { type: "snapshot"; snapshot: GameSnapshot }
   | { type: "hello"; name: string }
   | { type: "welcome"; name: string }
+  | { type: "voice-ready"; ready: boolean }
   | { type: "join-denied"; reason: "password" | "full" };
 
 const ROOM_CODE_LENGTH = 6;
@@ -1448,6 +1452,48 @@ function normalizeRoomCode(value: string) {
 
 function roomPeerId(code: string) {
   return `${ROOM_PEER_PREFIX}${code.toLowerCase()}`;
+}
+
+function watchVoiceActivity(
+  stream: MediaStream,
+  onChange: (speaking: boolean) => void,
+  isAudible: () => boolean = () => true,
+) {
+  if (typeof window === "undefined" || !window.AudioContext) return () => undefined;
+  const context = new window.AudioContext();
+  const source = context.createMediaStreamSource(stream);
+  const analyser = context.createAnalyser();
+  const samples = new Uint8Array(256);
+  let frame = 0;
+  let previous = false;
+  analyser.fftSize = 512;
+  analyser.smoothingTimeConstant = 0.72;
+  source.connect(analyser);
+  void context.resume().catch(() => undefined);
+
+  const readLevel = () => {
+    analyser.getByteTimeDomainData(samples);
+    let energy = 0;
+    for (const sample of samples) {
+      const normalized = (sample - 128) / 128;
+      energy += normalized * normalized;
+    }
+    const speaking = isAudible() && Math.sqrt(energy / samples.length) > 0.035;
+    if (speaking !== previous) {
+      previous = speaking;
+      onChange(speaking);
+    }
+    frame = window.requestAnimationFrame(readLevel);
+  };
+  frame = window.requestAnimationFrame(readLevel);
+
+  return () => {
+    window.cancelAnimationFrame(frame);
+    source.disconnect();
+    analyser.disconnect();
+    void context.close().catch(() => undefined);
+    onChange(false);
+  };
 }
 
 const portraitStyle = (portraitIndex: number) =>
@@ -1784,8 +1830,28 @@ export default function Home() {
   const [friendName, setFriendName] = useState("Guest investigator");
   const [copyConfirmed, setCopyConfirmed] = useState<"link" | "code" | null>(null);
   const [networkError, setNetworkError] = useState("");
+  const [voiceStatus, setVoiceStatus] = useState<VoiceStatus>("off");
+  const [microphoneReady, setMicrophoneReady] = useState(false);
+  const [voiceMode, setVoiceMode] = useState<VoiceMode>("push");
+  const [microphoneMuted, setMicrophoneMuted] = useState(false);
+  const [pushTalking, setPushTalking] = useState(false);
+  const [localSpeaking, setLocalSpeaking] = useState(false);
+  const [remoteSpeaking, setRemoteSpeaking] = useState(false);
+  const [remoteVoiceReady, setRemoteVoiceReady] = useState(false);
+  const [remoteVolume, setRemoteVolume] = useState(0.85);
+  const [friendVoiceMuted, setFriendVoiceMuted] = useState(false);
+  const [voiceError, setVoiceError] = useState("");
   const peerRef = useRef<Peer | null>(null);
   const connectionRef = useRef<DataConnection | null>(null);
+  const mediaConnectionRef = useRef<MediaConnection | null>(null);
+  const pendingVoiceCallRef = useRef<MediaConnection | null>(null);
+  const localVoiceStreamRef = useRef<MediaStream | null>(null);
+  const remoteVoiceStreamRef = useRef<MediaStream | null>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+  const localMeterCleanupRef = useRef<(() => void) | null>(null);
+  const remoteMeterCleanupRef = useRef<(() => void) | null>(null);
+  const remoteVoiceReadyRef = useRef(false);
+  const startVoiceCallRef = useRef<() => void>(() => {});
   const snapshotRef = useRef<GameSnapshot | null>(null);
   const applyingRemoteRef = useRef(false);
   const roomPasswordHashRef = useRef("");
@@ -1839,6 +1905,11 @@ export default function Home() {
   const turnPhaseIndex = turnPhases.findIndex((phase) => phase.id === turnPhase);
   const accusationComplete =
     selectedSuspect && selectedMethod && selectedLocation && selectedMotive;
+  const voiceTransmitting =
+    friendConnected &&
+    voiceStatus === "live" &&
+    !microphoneMuted &&
+    (voiceMode === "open" || pushTalking);
   const verifiedTimelineCount = currentCase.timeline.filter(
     (_, index) => evidenceCount >= Math.min(index * 2 + 1, 4),
   ).length;
@@ -1849,6 +1920,46 @@ export default function Home() {
       JSON.stringify({ soundOn, largeText, reducedMotion, captionsOn }),
     );
   }, [soundOn, largeText, reducedMotion, captionsOn]);
+
+  useEffect(() => {
+    for (const track of localVoiceStreamRef.current?.getAudioTracks() ?? []) {
+      track.enabled = voiceTransmitting;
+    }
+  }, [voiceTransmitting]);
+
+  useEffect(() => {
+    const audio = remoteAudioRef.current;
+    if (!audio) return;
+    audio.volume = friendVoiceMuted ? 0 : remoteVolume;
+  }, [friendVoiceMuted, remoteVolume]);
+
+  useEffect(() => {
+    if (voiceMode !== "push" || voiceStatus === "off" || voiceStatus === "error") {
+      return;
+    }
+    const isTextEntry = (target: EventTarget | null) =>
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement;
+    const beginPush = (event: KeyboardEvent) => {
+      if (event.code !== "KeyV" || event.repeat || isTextEntry(event.target)) return;
+      event.preventDefault();
+      setPushTalking(true);
+    };
+    const endPush = (event: KeyboardEvent) => {
+      if (event.code !== "KeyV") return;
+      setPushTalking(false);
+    };
+    const endPushOnBlur = () => setPushTalking(false);
+    window.addEventListener("keydown", beginPush);
+    window.addEventListener("keyup", endPush);
+    window.addEventListener("blur", endPushOnBlur);
+    return () => {
+      window.removeEventListener("keydown", beginPush);
+      window.removeEventListener("keyup", endPush);
+      window.removeEventListener("blur", endPushOnBlur);
+    };
+  }, [voiceMode, voiceStatus]);
 
   useEffect(() => {
     const parameters = new URLSearchParams(window.location.search);
@@ -1872,6 +1983,12 @@ export default function Home() {
       if (reconnectTimerRef.current !== null) {
         window.clearTimeout(reconnectTimerRef.current);
       }
+      localMeterCleanupRef.current?.();
+      remoteMeterCleanupRef.current?.();
+      mediaConnectionRef.current?.close();
+      pendingVoiceCallRef.current?.close();
+      for (const track of localVoiceStreamRef.current?.getTracks() ?? []) track.stop();
+      for (const track of remoteVoiceStreamRef.current?.getTracks() ?? []) track.stop();
       connectionRef.current?.close();
       peerRef.current?.destroy();
     },
@@ -1951,7 +2068,180 @@ export default function Home() {
     [caseRooms, investigated],
   );
 
+  const clearRemoteVoice = () => {
+    remoteMeterCleanupRef.current?.();
+    remoteMeterCleanupRef.current = null;
+    remoteVoiceStreamRef.current = null;
+    if (remoteAudioRef.current) remoteAudioRef.current.srcObject = null;
+    setRemoteSpeaking(false);
+  };
+
+  const stopVoiceChat = (notifyFriend = true) => {
+    if (notifyFriend && connectionRef.current?.open) {
+      connectionRef.current.send({ type: "voice-ready", ready: false } satisfies NetworkMessage);
+    }
+    mediaConnectionRef.current?.close();
+    pendingVoiceCallRef.current?.close();
+    mediaConnectionRef.current = null;
+    pendingVoiceCallRef.current = null;
+    localMeterCleanupRef.current?.();
+    localMeterCleanupRef.current = null;
+    clearRemoteVoice();
+    for (const track of localVoiceStreamRef.current?.getTracks() ?? []) track.stop();
+    localVoiceStreamRef.current = null;
+    remoteVoiceReadyRef.current = false;
+    setRemoteVoiceReady(false);
+    setVoiceStatus("off");
+    setMicrophoneReady(false);
+    setMicrophoneMuted(false);
+    setPushTalking(false);
+    setLocalSpeaking(false);
+    setVoiceError("");
+  };
+
+  const bindVoiceConnection = (call: MediaConnection) => {
+    if (mediaConnectionRef.current && mediaConnectionRef.current !== call) {
+      mediaConnectionRef.current.close();
+    }
+    mediaConnectionRef.current = call;
+    pendingVoiceCallRef.current = null;
+    setVoiceStatus("connecting");
+    setVoiceError("");
+    call.on("stream", (stream) => {
+      if (mediaConnectionRef.current !== call) return;
+      clearRemoteVoice();
+      remoteVoiceStreamRef.current = stream;
+      const audio = remoteAudioRef.current;
+      if (audio) {
+        audio.srcObject = stream;
+        audio.volume = friendVoiceMuted ? 0 : remoteVolume;
+        void audio.play().catch(() => {
+          setVoiceError("Tap the voice panel once to allow your friend's audio.");
+        });
+      }
+      remoteMeterCleanupRef.current = watchVoiceActivity(stream, setRemoteSpeaking);
+      setVoiceStatus("live");
+    });
+    call.on("close", () => {
+      if (mediaConnectionRef.current !== call) return;
+      mediaConnectionRef.current = null;
+      clearRemoteVoice();
+      setVoiceStatus(localVoiceStreamRef.current ? "ready" : "off");
+    });
+    call.on("error", () => {
+      if (mediaConnectionRef.current !== call) return;
+      mediaConnectionRef.current = null;
+      clearRemoteVoice();
+      setVoiceStatus(localVoiceStreamRef.current ? "ready" : "error");
+      setVoiceError("Voice paused. Keep the room open and tap Enable voice again if needed.");
+    });
+  };
+
+  const startVoiceCall = () => {
+    const peer = peerRef.current;
+    const connection = connectionRef.current;
+    const stream = localVoiceStreamRef.current;
+    if (
+      !peer ||
+      peer.destroyed ||
+      !connection?.open ||
+      !stream ||
+      !remoteVoiceReadyRef.current ||
+      mediaConnectionRef.current
+    ) return;
+    const call = peer.call(connection.peer, stream, {
+      metadata: { kind: "veil-voice" },
+    });
+    bindVoiceConnection(call);
+  };
+
+  useEffect(() => {
+    startVoiceCallRef.current = startVoiceCall;
+  });
+
+  const registerPeerVoice = (peer: Peer) => {
+    peer.on("call", (call) => {
+      if ((call.metadata as { kind?: string } | undefined)?.kind !== "veil-voice") {
+        call.close();
+        return;
+      }
+      const stream = localVoiceStreamRef.current;
+      if (!stream) {
+        pendingVoiceCallRef.current?.close();
+        pendingVoiceCallRef.current = call;
+        setVoiceStatus("ready");
+        setVoiceError("Your friend is ready. Enable your microphone to join voice chat.");
+        return;
+      }
+      call.answer(stream);
+      bindVoiceConnection(call);
+    });
+  };
+
+  const enableVoiceChat = async () => {
+    if (!friendConnected || !connectionRef.current?.open) {
+      setVoiceStatus("error");
+      setVoiceError("Connect to a friend room before enabling voice chat.");
+      return;
+    }
+    if (localVoiceStreamRef.current) {
+      setMicrophoneReady(true);
+      if (voiceStatus === "error") setVoiceStatus("ready");
+      if (networkRole === "host") startVoiceCall();
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setVoiceStatus("error");
+      setVoiceError("This browser does not provide microphone access for voice chat.");
+      return;
+    }
+    setVoiceStatus("requesting");
+    setVoiceError("");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          autoGainControl: true,
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+        },
+        video: false,
+      });
+      for (const track of stream.getAudioTracks()) track.enabled = false;
+      localVoiceStreamRef.current = stream;
+      setMicrophoneReady(true);
+      localMeterCleanupRef.current?.();
+      localMeterCleanupRef.current = watchVoiceActivity(
+        stream,
+        setLocalSpeaking,
+        () => stream.getAudioTracks().some((track) => track.enabled && track.readyState === "live"),
+      );
+      setVoiceStatus("ready");
+      setMicrophoneMuted(false);
+      connectionRef.current?.send({
+        type: "voice-ready",
+        ready: true,
+      } satisfies NetworkMessage);
+
+      const pendingCall = pendingVoiceCallRef.current;
+      if (pendingCall) {
+        pendingCall.answer(stream);
+        bindVoiceConnection(pendingCall);
+      } else if (networkRole === "host" && remoteVoiceReadyRef.current) {
+        window.setTimeout(() => startVoiceCallRef.current(), 0);
+      }
+    } catch (error) {
+      setVoiceStatus("error");
+      setVoiceError(
+        error instanceof DOMException && error.name === "NotAllowedError"
+          ? "Microphone access was blocked. Allow it in this site's browser settings, then try again."
+          : "The microphone could not start. Check that another app is not using it.",
+      );
+    }
+  };
+
   const disconnectNetwork = () => {
+    stopVoiceChat(false);
     const connection = connectionRef.current;
     const peer = peerRef.current;
     if (reconnectTimerRef.current !== null) {
@@ -2003,6 +2293,9 @@ export default function Home() {
         type: "hello",
         name: role === "guest" ? "Invited investigator" : "Host investigator",
       } satisfies NetworkMessage);
+      if (localVoiceStreamRef.current) {
+        connection.send({ type: "voice-ready", ready: true } satisfies NetworkMessage);
+      }
       if (role === "host") {
         setNetworkStatus("connected");
         setFriendConnected(true);
@@ -2046,10 +2339,28 @@ export default function Home() {
       if (message?.type === "hello") {
         setFriendName(message.name);
       }
+      if (message?.type === "voice-ready") {
+        remoteVoiceReadyRef.current = message.ready;
+        setRemoteVoiceReady(message.ready);
+        if (!message.ready) {
+          mediaConnectionRef.current?.close();
+          mediaConnectionRef.current = null;
+          clearRemoteVoice();
+          setVoiceStatus(localVoiceStreamRef.current ? "ready" : "off");
+        } else if (role === "host" && localVoiceStreamRef.current) {
+          window.setTimeout(() => startVoiceCallRef.current(), 0);
+        }
+      }
     });
     connection.on("close", () => {
       if (connectionRef.current !== connection) return;
       connectionRef.current = null;
+      mediaConnectionRef.current?.close();
+      mediaConnectionRef.current = null;
+      remoteVoiceReadyRef.current = false;
+      setRemoteVoiceReady(false);
+      clearRemoteVoice();
+      setVoiceStatus(localVoiceStreamRef.current ? "ready" : "off");
       setFriendConnected(false);
       setNetworkStatus(
         role === "host" ? "waiting" : connectionAccepted ? "reconnecting" : "error",
@@ -2069,6 +2380,12 @@ export default function Home() {
     });
     connection.on("error", () => {
       if (connectionRef.current !== connection) return;
+      mediaConnectionRef.current?.close();
+      mediaConnectionRef.current = null;
+      remoteVoiceReadyRef.current = false;
+      setRemoteVoiceReady(false);
+      clearRemoteVoice();
+      setVoiceStatus(localVoiceStreamRef.current ? "ready" : "off");
       setNetworkStatus("error");
       setFriendConnected(false);
       setNetworkError("The connection paused. Tap Join table to try again.");
@@ -2086,6 +2403,7 @@ export default function Home() {
       const passwordHash = await hashRoomPassword(hostPassword);
       const peer = new PeerClient(roomPeerId(code));
       peerRef.current = peer;
+      registerPeerVoice(peer);
       roomPasswordHashRef.current = passwordHash;
       setRoomCode(code);
       setRoomPasswordProtected(Boolean(passwordHash));
@@ -2214,6 +2532,7 @@ export default function Home() {
       const { Peer: PeerClient } = await import("peerjs");
       const peer = new PeerClient();
       peerRef.current = peer;
+      registerPeerVoice(peer);
       peer.on("open", () => {
         const target = guestTargetRef.current;
         if (target) connectGuest(peer, target.hostId, target.passwordHash);
@@ -2288,6 +2607,7 @@ export default function Home() {
 
   const returnToOpeningScene = () => {
     playChime(soundOn);
+    stopVoiceChat(true);
     setNotebookOpen(false);
     setSettingsOpen(false);
     setAccusationOpen(false);
@@ -2513,6 +2833,183 @@ export default function Home() {
     }
   };
 
+  const renderVoiceConsole = (placement: "lobby" | "case") => {
+    const hasMicrophone = microphoneReady;
+    const statusLabel =
+      voiceStatus === "requesting"
+        ? "Requesting microphone"
+        : voiceStatus === "connecting"
+          ? "Opening private voice channel"
+          : voiceStatus === "live"
+            ? "Voice channel live"
+            : voiceStatus === "ready" && !remoteVoiceReady
+              ? "Microphone ready · waiting for friend"
+              : voiceStatus === "ready"
+                ? "Both microphones ready"
+                : voiceStatus === "error"
+                  ? "Voice needs attention"
+                  : "Private voice is off";
+
+    return (
+      <section
+        className={`voice-console voice-console-${placement} ${voiceStatus === "live" ? "voice-live" : ""}`}
+        aria-label="Friend voice chat controls"
+        onClick={() => {
+          const audio = remoteAudioRef.current;
+          if (!audio?.srcObject || !audio.paused) return;
+          void audio.play().then(() => setVoiceError("")).catch(() => undefined);
+        }}
+      >
+        <div className="voice-console-heading">
+          <span className={`voice-status-light ${localSpeaking || remoteSpeaking ? "speaking" : ""}`}>
+            <Mic size={16} />
+          </span>
+          <span>
+            <small>Blackthorn voice channel</small>
+            <strong>{statusLabel}</strong>
+          </span>
+          {!hasMicrophone && (
+            <button
+              type="button"
+              className="voice-enable-button"
+              onClick={() => void enableVoiceChat()}
+              disabled={voiceStatus === "requesting"}
+            >
+              <Mic size={15} />
+              {voiceStatus === "requesting" ? "Allow microphone…" : "Enable voice"}
+            </button>
+          )}
+        </div>
+
+        {hasMicrophone && (
+          <>
+            <div className="voice-people" aria-label="Voice participants">
+              <span className={localSpeaking ? "speaking" : ""}>
+                <i><Mic size={13} /></i>
+                <span><strong>You</strong><small>{voiceTransmitting ? "Transmitting" : "Silent"}</small></span>
+              </span>
+              <span className={remoteSpeaking ? "speaking" : ""}>
+                <i>{friendVoiceMuted ? <VolumeX size={13} /> : <Headphones size={13} />}</i>
+                <span>
+                  <strong>{friendName}</strong>
+                  <small>{remoteVoiceReady ? (remoteSpeaking ? "Speaking" : "Connected") : "Voice not joined"}</small>
+                </span>
+              </span>
+            </div>
+
+            <div className="voice-controls">
+              <div className="voice-mode-switch" role="group" aria-label="Microphone mode">
+                <button
+                  type="button"
+                  className={voiceMode === "push" ? "active" : ""}
+                  aria-pressed={voiceMode === "push"}
+                  onClick={() => {
+                    setVoiceMode("push");
+                    setPushTalking(false);
+                  }}
+                >
+                  Push to talk
+                </button>
+                <button
+                  type="button"
+                  className={voiceMode === "open" ? "active" : ""}
+                  aria-pressed={voiceMode === "open"}
+                  onClick={() => {
+                    setVoiceMode("open");
+                    setPushTalking(false);
+                  }}
+                >
+                  Open mic
+                </button>
+              </div>
+
+              {voiceMode === "push" ? (
+                <button
+                  type="button"
+                  className={`push-talk-button ${pushTalking && !microphoneMuted ? "talking" : ""}`}
+                  disabled={microphoneMuted}
+                  onPointerDown={(event) => {
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                    setPushTalking(true);
+                  }}
+                  onPointerUp={() => setPushTalking(false)}
+                  onPointerCancel={() => setPushTalking(false)}
+                  onLostPointerCapture={() => setPushTalking(false)}
+                >
+                  <Mic size={16} />
+                  {microphoneMuted
+                    ? "Microphone muted"
+                    : pushTalking
+                      ? "Talking now"
+                      : "Hold to talk · V on PC"}
+                </button>
+              ) : (
+                <div className={`open-mic-status ${voiceTransmitting ? "transmitting" : ""}`}>
+                  <span />
+                  {voiceTransmitting ? "Open mic transmitting" : "Open mic muted"}
+                </div>
+              )}
+
+              <button
+                type="button"
+                className={`voice-icon-control ${microphoneMuted ? "active" : ""}`}
+                onClick={() => {
+                  setMicrophoneMuted((value) => !value);
+                  setPushTalking(false);
+                }}
+                aria-label={microphoneMuted ? "Unmute microphone" : "Mute microphone"}
+                aria-pressed={microphoneMuted}
+                title={microphoneMuted ? "Unmute microphone" : "Mute microphone"}
+              >
+                {microphoneMuted ? <MicOff size={16} /> : <Mic size={16} />}
+              </button>
+
+              <button
+                type="button"
+                className={`voice-icon-control ${friendVoiceMuted ? "active" : ""}`}
+                onClick={() => setFriendVoiceMuted((value) => !value)}
+                aria-label={friendVoiceMuted ? "Hear friend" : "Mute friend"}
+                aria-pressed={friendVoiceMuted}
+                title={friendVoiceMuted ? "Hear friend" : "Mute friend"}
+              >
+                {friendVoiceMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+              </button>
+
+              <label className="voice-volume">
+                <Headphones size={14} />
+                <span className="sr-only">Friend volume</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={Math.round(remoteVolume * 100)}
+                  onChange={(event) => {
+                    setRemoteVolume(Number(event.target.value) / 100);
+                    setFriendVoiceMuted(false);
+                  }}
+                  aria-label="Friend volume"
+                />
+              </label>
+
+              <button
+                type="button"
+                className="voice-leave-button"
+                onClick={() => stopVoiceChat(true)}
+              >
+                Stop voice
+              </button>
+            </div>
+          </>
+        )}
+
+        {voiceError && <p className="voice-error" role="alert">{voiceError}</p>}
+        <small className="voice-privacy-note">
+          Echo cancellation, noise suppression, and automatic gain are active. Audio travels only between players.
+        </small>
+      </section>
+    );
+  };
+
   return (
     <main
       className={`veil-app ${largeText ? "large-text" : ""} ${
@@ -2527,6 +3024,7 @@ export default function Home() {
         <span className="dust dust-three" />
         <span className="dust dust-four" />
       </div>
+      <audio ref={remoteAudioRef} autoPlay playsInline className="voice-remote-audio" />
 
       {scene !== "opening" && (
         <header className="topbar">
@@ -3022,6 +3520,8 @@ export default function Home() {
                 </p>
               )}
 
+              {friendConnected && renderVoiceConsole("lobby")}
+
               <div className="lobby-actions">
                 <button
                   className="primary-button"
@@ -3108,6 +3608,8 @@ export default function Home() {
               </button>
             </div>
           </div>
+
+          {friendConnected && renderVoiceConsole("case")}
 
           <div className="tabletop-status">
             <span>
