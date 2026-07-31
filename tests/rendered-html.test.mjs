@@ -109,6 +109,12 @@ test("keeps the full tabletop case and accessibility controls in source", async 
   assert.match(page, /setScene\("opening"\)/);
   assert.match(page, /className="brand-mark-art"/);
   assert.match(css, /\.brand-mark-art/);
+  assert.match(page, /type NotebookTab = "evidence" \| "timeline" \| "suspects"/);
+  assert.match(page, /role="tablist"/);
+  assert.match(page, /notebookTab === "timeline"/);
+  assert.match(page, /notebookTab === "suspects"/);
+  assert.match(page, /Mark as prime suspect/);
+  assert.match(css, /\.notebook-suspect\.marked/);
   assert.doesNotMatch(page, /sigil-eye-shell/);
   assert.match(page, /velvet-curtain/);
   assert.match(page, /opening-embers/);

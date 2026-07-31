@@ -39,6 +39,7 @@ import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react"
 
 type Scene = "opening" | "rules" | "case" | "verdict" | "menu" | "lobby";
 type TurnPhase = "roll" | "move" | "search" | "end";
+type NotebookTab = "evidence" | "timeline" | "suspects";
 type RoomId =
   | "observatory"
   | "attic"
@@ -1732,6 +1733,7 @@ export default function Home() {
   const [investigated, setInvestigated] = useState<RoomId[]>([]);
   const [activeRoom, setActiveRoom] = useState<RoomId | null>(null);
   const [notebookOpen, setNotebookOpen] = useState(false);
+  const [notebookTab, setNotebookTab] = useState<NotebookTab>("evidence");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [accusationOpen, setAccusationOpen] = useState(false);
   const [soundOn, setSoundOn] = useState(() => readPreference("soundOn", true));
@@ -1837,6 +1839,9 @@ export default function Home() {
   const turnPhaseIndex = turnPhases.findIndex((phase) => phase.id === turnPhase);
   const accusationComplete =
     selectedSuspect && selectedMethod && selectedLocation && selectedMotive;
+  const verifiedTimelineCount = currentCase.timeline.filter(
+    (_, index) => evidenceCount >= Math.min(index * 2 + 1, 4),
+  ).length;
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -2466,6 +2471,7 @@ export default function Home() {
     setInvestigated([]);
     setActiveRoom(null);
     setNotebookOpen(false);
+    setNotebookTab("evidence");
     setAccusationOpen(false);
     setSelectedSuspect("");
     setSelectedMethod("");
@@ -3571,23 +3577,143 @@ export default function Home() {
                 <X size={19} />
               </button>
             </div>
-            <div className="notebook-tabs">
-              <span className="active">Evidence</span>
-              <span>Timeline</span>
-              <span>Suspects</span>
+            <div className="notebook-tabs" role="tablist" aria-label="Notebook sections">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={notebookTab === "evidence"}
+                aria-controls="notebook-evidence"
+                className={notebookTab === "evidence" ? "active" : ""}
+                onClick={() => {
+                  setNotebookTab("evidence");
+                  playChime(soundOn);
+                }}
+              >
+                Evidence <span>{evidenceCount}/{caseRooms.length}</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={notebookTab === "timeline"}
+                aria-controls="notebook-timeline"
+                className={notebookTab === "timeline" ? "active" : ""}
+                onClick={() => {
+                  setNotebookTab("timeline");
+                  playChime(soundOn);
+                }}
+              >
+                Timeline <span>{verifiedTimelineCount}/{currentCase.timeline.length}</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={notebookTab === "suspects"}
+                aria-controls="notebook-suspects"
+                className={notebookTab === "suspects" ? "active" : ""}
+                onClick={() => {
+                  setNotebookTab("suspects");
+                  playChime(soundOn);
+                }}
+              >
+                Suspects <span>{selectedSuspect ? "1 marked" : currentCase.suspects.length}</span>
+              </button>
             </div>
-            <div className="notebook-entries">
-              {caseRooms.map((room, index) => (
-                <article className={clueProgress[index] ? "found" : ""} key={room.id}>
-                  <div>{clueProgress[index] ? <Check size={15} /> : <LockKeyhole size={15} />}</div>
+
+            {notebookTab === "evidence" && (
+              <div
+                className="notebook-entries"
+                id="notebook-evidence"
+                role="tabpanel"
+              >
+                {caseRooms.map((room, index) => (
+                  <article className={clueProgress[index] ? "found" : ""} key={room.id}>
+                    <div>{clueProgress[index] ? <Check size={15} /> : <LockKeyhole size={15} />}</div>
+                    <span>
+                      <small>{room.name}</small>
+                      <strong>{clueProgress[index] ? room.clue : "Evidence not yet found"}</strong>
+                      {clueProgress[index] && <p>{room.note}</p>}
+                    </span>
+                  </article>
+                ))}
+              </div>
+            )}
+
+            {notebookTab === "timeline" && (
+              <div
+                className="notebook-entries notebook-timeline"
+                id="notebook-timeline"
+                role="tabpanel"
+              >
+                <div className="notebook-section-intro">
+                  <Clock3 size={17} />
                   <span>
-                    <small>{room.name}</small>
-                    <strong>{clueProgress[index] ? room.clue : "Evidence not yet found"}</strong>
-                    {clueProgress[index] && <p>{room.note}</p>}
+                    <strong>Critical movements</strong>
+                    <small>Times verify automatically as your evidence trail grows.</small>
                   </span>
-                </article>
-              ))}
-            </div>
+                </div>
+                {currentCase.timeline.map((event, index) => {
+                  const requiredClues = Math.min(index * 2 + 1, 4);
+                  const verified = evidenceCount >= requiredClues;
+                  return (
+                    <article className={verified ? "found" : ""} key={`${event.time}-${index}`}>
+                      <div>{verified ? <Check size={15} /> : <LockKeyhole size={15} />}</div>
+                      <span>
+                        <small>{verified ? "Verified timestamp" : `Requires ${requiredClues} clues`}</small>
+                        <strong>{verified ? event.time : "Time unverified"}</strong>
+                        <p>
+                          {verified
+                            ? event.text
+                            : "Search the manor to connect this movement to physical evidence."}
+                        </p>
+                      </span>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+
+            {notebookTab === "suspects" && (
+              <div
+                className="notebook-entries notebook-suspects"
+                id="notebook-suspects"
+                role="tabpanel"
+              >
+                <div className="notebook-section-intro">
+                  <UsersRound size={17} />
+                  <span>
+                    <strong>People of interest</strong>
+                    <small>Mark one suspect to carry them into your final theory.</small>
+                  </span>
+                </div>
+                {currentCase.suspects.map((suspect) => {
+                  const marked = selectedSuspect === suspect.id;
+                  return (
+                    <button
+                      type="button"
+                      className={`notebook-suspect ${marked ? "marked" : ""}`}
+                      key={suspect.id}
+                      aria-pressed={marked}
+                      onClick={() => {
+                        setSelectedSuspect(marked ? "" : suspect.id);
+                        setWrongTheory(false);
+                        playChime(soundOn, !marked);
+                      }}
+                    >
+                      <span className="notebook-suspect-monogram">{suspect.monogram}</span>
+                      <span>
+                        <small>{suspect.role}</small>
+                        <strong>{suspect.name}</strong>
+                        <p>{suspect.detail}</p>
+                        <i>{marked ? "Marked as prime suspect" : "Mark as prime suspect"}</i>
+                      </span>
+                      <span className="notebook-suspect-check">
+                        {marked ? <Check size={15} /> : <CircleDot size={15} />}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <button
               className="primary-button notebook-accuse"
               onClick={() => {
@@ -3703,7 +3829,14 @@ export default function Home() {
             </div>
 
             <div className="accusation-footer">
-              <button className="secondary-button" onClick={() => setAccusationOpen(false)}>
+              <button
+                className="secondary-button"
+                onClick={() => {
+                  setAccusationOpen(false);
+                  setNotebookTab("evidence");
+                  setNotebookOpen(true);
+                }}
+              >
                 Review evidence
               </button>
               <button
