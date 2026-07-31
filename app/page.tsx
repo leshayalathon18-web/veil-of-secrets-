@@ -9,6 +9,7 @@ import {
   CircleDot,
   Clock3,
   Dices,
+  DoorOpen,
   Eye,
   Feather,
   Flame,
@@ -31,20 +32,27 @@ import {
   VolumeX,
   X,
 } from "lucide-react";
-import { type CSSProperties, useEffect, useMemo, useState } from "react";
+import type { DataConnection, Peer } from "peerjs";
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 
-type Scene = "opening" | "rules" | "case" | "verdict" | "menu";
+type Scene = "opening" | "rules" | "case" | "verdict" | "menu" | "lobby";
 type TurnPhase = "roll" | "move" | "search" | "end";
 type RoomId =
   | "observatory"
+  | "attic"
   | "library"
   | "study"
+  | "masterBedroom"
   | "ballroom"
   | "hall"
+  | "guestSuite"
   | "dining"
+  | "garden"
   | "conservatory"
   | "cellar"
-  | "kitchen";
+  | "kitchen"
+  | "basement"
+  | "secretPassage";
 
 type Room = {
   id: RoomId;
@@ -79,7 +87,23 @@ const rooms: Room[] = [
     neighbors: ["library", "ballroom"],
     hue: "#355d70",
     board: { column: 1, row: 1, width: 4, height: 3 },
-    doorway: "p-2-4",
+    doorway: "p-3-4",
+    doorSide: "bottom",
+  },
+  {
+    id: "attic",
+    name: "Attic",
+    kicker: "A trunk opened in haste",
+    description:
+      "A travel trunk stands open beneath the rafters, its false bottom holding a duplicate account key.",
+    clue: "Duplicate account key",
+    note: "The key opens Celia's private document case and was hidden upstairs before dinner.",
+    icon: KeyRound,
+    area: "attic",
+    neighbors: ["observatory", "library", "masterBedroom"],
+    hue: "#5d5148",
+    board: { column: 6, row: 1, width: 3, height: 3 },
+    doorway: "p-7-4",
     doorSide: "bottom",
   },
   {
@@ -94,8 +118,8 @@ const rooms: Room[] = [
     area: "library",
     neighbors: ["observatory", "study", "hall"],
     hue: "#75444c",
-    board: { column: 6, row: 1, width: 5, height: 3 },
-    doorway: "p-8-4",
+    board: { column: 10, row: 1, width: 4, height: 3 },
+    doorway: "p-12-4",
     doorSide: "bottom",
   },
   {
@@ -110,8 +134,8 @@ const rooms: Room[] = [
     area: "study",
     neighbors: ["library", "dining"],
     hue: "#5a4a76",
-    board: { column: 13, row: 1, width: 4, height: 3 },
-    doorway: "p-15-4",
+    board: { column: 15, row: 1, width: 6, height: 3 },
+    doorway: "p-17-4",
     doorSide: "bottom",
   },
   {
@@ -126,9 +150,25 @@ const rooms: Room[] = [
     area: "ballroom",
     neighbors: ["observatory", "hall", "conservatory"],
     hue: "#7a5b35",
-    board: { column: 1, row: 5, width: 4, height: 4 },
-    doorway: "p-3-9",
-    doorSide: "bottom",
+    board: { column: 6, row: 6, width: 3, height: 4 },
+    doorway: "p-9-7",
+    doorSide: "right",
+  },
+  {
+    id: "masterBedroom",
+    name: "Master Bedroom",
+    kicker: "A wardrobe left breathing",
+    description:
+      "The wardrobe door is ajar. A white camellia petal is caught in a crimson evening cloak.",
+    clue: "Cloak-bound camellia",
+    note: "Celia changed her wrap after crossing the wet conservatory and hid the first one upstairs.",
+    icon: LockKeyhole,
+    area: "master-bedroom",
+    neighbors: ["attic", "hall", "dining"],
+    hue: "#6d3444",
+    board: { column: 1, row: 6, width: 4, height: 4 },
+    doorway: "p-5-7",
+    doorSide: "right",
   },
   {
     id: "hall",
@@ -142,9 +182,25 @@ const rooms: Room[] = [
     area: "hall",
     neighbors: ["library", "ballroom", "dining", "cellar"],
     hue: "#8a6938",
-    board: { column: 7, row: 5, width: 4, height: 4 },
-    doorway: "p-8-9",
-    doorSide: "bottom",
+    board: { column: 10, row: 6, width: 4, height: 4 },
+    doorway: "p-14-7",
+    doorSide: "right",
+  },
+  {
+    id: "guestSuite",
+    name: "Guest Suite",
+    kicker: "A witness behind a locked door",
+    description:
+      "A tea tray is untouched, but the speaking tube carries a conversation from the library corridor.",
+    clue: "Speaking-tube testimony",
+    note: "A guest heard Celia tell Edmund, 'The accounts end tonight,' shortly before 10:17.",
+    icon: Headphones,
+    area: "guest-suite",
+    neighbors: ["study", "hall", "garden"],
+    hue: "#4a5f72",
+    board: { column: 15, row: 6, width: 6, height: 4 },
+    doorway: "p-14-7",
+    doorSide: "left",
   },
   {
     id: "dining",
@@ -158,9 +214,9 @@ const rooms: Room[] = [
     area: "dining",
     neighbors: ["study", "hall", "kitchen"],
     hue: "#6d3b35",
-    board: { column: 13, row: 5, width: 4, height: 3 },
-    doorway: "p-14-8",
-    doorSide: "bottom",
+    board: { column: 1, row: 11, width: 4, height: 4 },
+    doorway: "p-5-12",
+    doorSide: "right",
   },
   {
     id: "conservatory",
@@ -174,9 +230,25 @@ const rooms: Room[] = [
     area: "conservatory",
     neighbors: ["ballroom", "cellar"],
     hue: "#3f6754",
-    board: { column: 13, row: 10, width: 4, height: 3 },
-    doorway: "p-14-13",
-    doorSide: "bottom",
+    board: { column: 10, row: 11, width: 4, height: 4 },
+    doorway: "p-14-12",
+    doorSide: "right",
+  },
+  {
+    id: "garden",
+    name: "Moon Garden",
+    kicker: "Footprints that stop at stone",
+    description:
+      "A wet trail circles the reflecting pool, then ends where a hidden service stair enters the manor.",
+    clue: "Interrupted garden trail",
+    note: "The trail proves the rain route was staged; no one crossed the outer gate after the murder.",
+    icon: Sparkles,
+    area: "garden",
+    neighbors: ["guestSuite", "conservatory", "secretPassage"],
+    hue: "#2f654c",
+    board: { column: 15, row: 11, width: 6, height: 4 },
+    doorway: "p-14-12",
+    doorSide: "left",
   },
   {
     id: "cellar",
@@ -190,8 +262,8 @@ const rooms: Room[] = [
     area: "cellar",
     neighbors: ["conservatory", "hall", "kitchen"],
     hue: "#4e4041",
-    board: { column: 1, row: 11, width: 5, height: 4 },
-    doorway: "p-3-10",
+    board: { column: 1, row: 16, width: 4, height: 3 },
+    doorway: "p-3-15",
     doorSide: "top",
   },
   {
@@ -206,8 +278,40 @@ const rooms: Room[] = [
     area: "kitchen",
     neighbors: ["dining", "cellar"],
     hue: "#6a503b",
-    board: { column: 7, row: 11, width: 4, height: 4 },
-    doorway: "p-8-10",
+    board: { column: 6, row: 11, width: 3, height: 4 },
+    doorway: "p-9-12",
+    doorSide: "right",
+  },
+  {
+    id: "basement",
+    name: "Basement",
+    kicker: "The boiler masks a second clock",
+    description:
+      "Soot on the boiler dial preserves a clean handprint at exactly 10:20.",
+    clue: "Sootless boiler dial",
+    note: "The basement clock was adjusted three minutes late to support Celia's false timeline.",
+    icon: Flame,
+    area: "basement",
+    neighbors: ["cellar", "kitchen", "secretPassage"],
+    hue: "#563b32",
+    board: { column: 6, row: 16, width: 3, height: 3 },
+    doorway: "p-7-15",
+    doorSide: "top",
+  },
+  {
+    id: "secretPassage",
+    name: "Secret Passage",
+    kicker: "Velvet caught behind the wall",
+    description:
+      "A crimson thread hangs from the concealed latch linking the garden stair to the library wing.",
+    clue: "Crimson latch thread",
+    note: "Celia used the passage to return the cleaned letter opener without crossing the crowded hall.",
+    icon: DoorOpen,
+    area: "secret-passage",
+    neighbors: ["basement", "garden", "library"],
+    hue: "#41364e",
+    board: { column: 10, row: 16, width: 4, height: 3 },
+    doorway: "p-12-15",
     doorSide: "top",
   },
 ];
@@ -234,6 +338,29 @@ const evidenceVariants: Record<RoomId, EvidenceVariant[]> = {
         "A photographic plate captured the east casement shut at 10:18, one minute after Edmund's watch stopped.",
       clue: "Storm-plate exposure",
       note: "The supposed escape through the observatory happened after the crime and was staged from inside the manor.",
+    },
+  ],
+  attic: [
+    {
+      kicker: "A trunk opened in haste",
+      description:
+        "A travel trunk stands open beneath the rafters, its false bottom holding a duplicate account key.",
+      clue: "Duplicate account key",
+      note: "The key opens Celia's private document case and was hidden upstairs before dinner.",
+    },
+    {
+      kicker: "Dust broken by one visitor",
+      description:
+        "Only one narrow shoe trail crosses the attic dust, ending at a locked solicitor's trunk.",
+      clue: "Attic dust trail",
+      note: "The size-seven trail matches Celia's evening shoes and disproves her claim that she never went upstairs.",
+    },
+    {
+      kicker: "A ribbon tucked in cedar",
+      description:
+        "Gold document ribbon is pinched beneath the cedar chest that held the estate's duplicate account keys.",
+      clue: "Hidden document ribbon",
+      note: "The ribbon matches the packet Edmund opened in the library before confronting Celia.",
     },
   ],
   library: [
@@ -305,6 +432,29 @@ const evidenceVariants: Record<RoomId, EvidenceVariant[]> = {
       note: "Mirelle's public performance gives her no route to the library before 10:24.",
     },
   ],
+  masterBedroom: [
+    {
+      kicker: "A wardrobe left breathing",
+      description:
+        "The wardrobe door is ajar. A white camellia petal is caught in a crimson evening cloak.",
+      clue: "Cloak-bound camellia",
+      note: "Celia changed her wrap after crossing the wet conservatory and hid the first one upstairs.",
+    },
+    {
+      kicker: "Rain beneath dry velvet",
+      description:
+        "The hem of a crimson wrap is wet inside the wardrobe while every other garment is dry.",
+      clue: "Hidden wet wrap",
+      note: "The wrap carries glasshouse grit from Celia's staged route through the conservatory.",
+    },
+    {
+      kicker: "A missing pair returns",
+      description:
+        "Size-seven evening shoes sit behind the wardrobe with fresh marble dust packed into one heel.",
+      clue: "Recovered evening shoes",
+      note: "The shoes match the Grand Hall impression and were hidden after Celia returned from the library wing.",
+    },
+  ],
   hall: [
     {
       kicker: "A quiet return upstairs",
@@ -326,6 +476,29 @@ const evidenceVariants: Record<RoomId, EvidenceVariant[]> = {
         "The stair rail holds a small polished handprint above a smear of silver-cleaning rouge.",
       clue: "Rouge-marked handprint",
       note: "The print is too small for Elias and carries the same silver rouge found on Celia's writing gloves.",
+    },
+  ],
+  guestSuite: [
+    {
+      kicker: "A witness behind a locked door",
+      description:
+        "A tea tray is untouched, but the speaking tube carries a conversation from the library corridor.",
+      clue: "Speaking-tube testimony",
+      note: "A guest heard Celia tell Edmund, 'The accounts end tonight,' shortly before 10:17.",
+    },
+    {
+      kicker: "A bell pull at quarter past",
+      description:
+        "The guest bell register shows a pull at 10:16 and a servant's note reporting raised voices next door.",
+      clue: "Guest bell register",
+      note: "The timing places Celia in the library wing one minute before Edmund's watch stopped.",
+    },
+    {
+      kicker: "A message never delivered",
+      description:
+        "An unsigned note beneath the guest tray warns Edmund not to meet his solicitor alone.",
+      clue: "Undelivered warning",
+      note: "The paper came from Celia's monogrammed writing set, though the monogram was cut away.",
     },
   ],
   dining: [
@@ -374,6 +547,29 @@ const evidenceVariants: Record<RoomId, EvidenceVariant[]> = {
       note: "The velvet matches Celia's wrap and traces her staged route from the conservatory back into the manor.",
     },
   ],
+  garden: [
+    {
+      kicker: "Footprints that stop at stone",
+      description:
+        "A wet trail circles the reflecting pool, then ends where a hidden service stair enters the manor.",
+      clue: "Interrupted garden trail",
+      note: "The trail proves the rain route was staged; no one crossed the outer gate after the murder.",
+    },
+    {
+      kicker: "A gate sealed by rust",
+      description:
+        "Rust bridges the garden gate latch without a break, despite Celia's story of an escaping intruder.",
+      clue: "Unopened garden gate",
+      note: "The supposed outsider never left the grounds because the gate had not moved all evening.",
+    },
+    {
+      kicker: "Moonlight finds the wrong mud",
+      description:
+        "The wet prints beside the pool contain conservatory grit rather than soil from the garden beds.",
+      clue: "Glasshouse garden prints",
+      note: "The trail was planted with indoor potting mix to make Celia's passage look like an escape route.",
+    },
+  ],
   cellar: [
     {
       kicker: "A footprint too obvious",
@@ -420,6 +616,52 @@ const evidenceVariants: Record<RoomId, EvidenceVariant[]> = {
       note: "Celia had both the cleaning material and the opportunity to erase prints from the letter opener.",
     },
   ],
+  basement: [
+    {
+      kicker: "The boiler masks a second clock",
+      description:
+        "Soot on the boiler dial preserves a clean handprint at exactly 10:20.",
+      clue: "Sootless boiler dial",
+      note: "The basement clock was adjusted three minutes late to support Celia's false timeline.",
+    },
+    {
+      kicker: "Three minutes stolen below",
+      description:
+        "Fresh tool marks score the regulator screw of the basement clock while the hall clocks agree.",
+      clue: "Altered clock regulator",
+      note: "Someone shifted the basement clock after 10:17 to make Edmund appear alive later.",
+    },
+    {
+      kicker: "Coal dust on white gloves",
+      description:
+        "A white evening glove lies behind the boiler, its fingertips marked with soot and silver rouge.",
+      clue: "Soot-marked glove",
+      note: "The glove links Celia's clock tampering to the polished library weapon.",
+    },
+  ],
+  secretPassage: [
+    {
+      kicker: "Velvet caught behind the wall",
+      description:
+        "A crimson thread hangs from the concealed latch linking the garden stair to the library wing.",
+      clue: "Crimson latch thread",
+      note: "Celia used the passage to return the cleaned letter opener without crossing the crowded hall.",
+    },
+    {
+      kicker: "A wall panel recently oiled",
+      description:
+        "The hidden hinge shines with fresh oil, and one white camellia petal rests inside the narrow track.",
+      clue: "Oiled passage hinge",
+      note: "The passage was prepared before dinner and used by someone wearing Celia's camellia.",
+    },
+    {
+      kicker: "Echoes measure the return",
+      description:
+        "A servant's phonograph test captured the hidden panel closing at 10:22 beneath the final ballroom waltz.",
+      clue: "Recorded panel echo",
+      note: "The timing gives Celia five minutes to clean the opener and return it through the passage.",
+    },
+  ],
 };
 
 const caseVariations = [
@@ -438,21 +680,81 @@ const caseVariations = [
 ] as const;
 
 const detectiveRoster = [
-  { id: "you", name: "You", title: "The Lantern", initials: "YL", color: "#e3c878" },
-  { id: "iris", name: "Iris Bell", title: "The Listener", initials: "IB", color: "#75b8c8" },
-  { id: "theo", name: "Theo Wren", title: "The Archivist", initials: "TW", color: "#a98bd4" },
-  { id: "nell", name: "Nell Fox", title: "The Skeptic", initials: "NF", color: "#d16d78" },
-  { id: "mara", name: "Mara Vale", title: "The Cartographer", initials: "MV", color: "#77b78b" },
-  { id: "gideon", name: "Gideon Pike", title: "The Locksmith", initials: "GP", color: "#d29a62" },
-  { id: "sable", name: "Sable Quinn", title: "The Shadow", initials: "SQ", color: "#8c9fca" },
-  { id: "rowan", name: "Rowan Chase", title: "The Analyst", initials: "RC", color: "#c47f9f" },
-  { id: "ophelia", name: "Ophelia Reed", title: "The Medium", initials: "OR", color: "#9b83c5" },
-  { id: "bram", name: "Bram Locke", title: "The Watchman", initials: "BL", color: "#a7a167" },
+  {
+    id: "you", name: "Avery Vane", title: "The Lantern", initials: "AV", color: "#e3c878",
+    portraitIndex: 0, talent: "Revisit one searched room", bio: "A society investigator who notices what polished manners are designed to hide.",
+  },
+  {
+    id: "iris", name: "Iris Bell", title: "The Listener", initials: "IB", color: "#75b8c8",
+    portraitIndex: 9, talent: "Hear a nearby clue", bio: "A wilderness tracker who reads silence, footprints, and changes in the weather.",
+  },
+  {
+    id: "theo", name: "Theo Wren", title: "The Archivist", initials: "TW", color: "#a98bd4",
+    portraitIndex: 1, talent: "Decode sealed records", bio: "Blackthorn's former archivist, carrying a memory sharper than any index.",
+  },
+  {
+    id: "nell", name: "Nell Fox", title: "The Skeptic", initials: "NF", color: "#d16d78",
+    portraitIndex: 2, talent: "Challenge a statement", bio: "A relentless columnist who treats every confident answer as a fresh question.",
+  },
+  {
+    id: "mara", name: "Mara Vale", title: "The Advocate", initials: "MV", color: "#77b78b",
+    portraitIndex: 3, talent: "Expose a contradiction", bio: "A celebrated barrister with a gift for turning testimony against itself.",
+  },
+  {
+    id: "gideon", name: "Gideon Pike", title: "The Inspector", initials: "GP", color: "#d29a62",
+    portraitIndex: 4, talent: "Inspect a locked object", bio: "A retired inspector who knows which details criminals expect police to miss.",
+  },
+  {
+    id: "sable", name: "Sable Quinn", title: "The Illusionist", initials: "SQ", color: "#8c9fca",
+    portraitIndex: 5, talent: "Slip through one doorway", bio: "A theatrical magician fluent in misdirection, mechanisms, and hidden panels.",
+  },
+  {
+    id: "rowan", name: "Rowan Chase", title: "The Cipher", initials: "RC", color: "#c47f9f",
+    portraitIndex: 6, talent: "Read an encoded note", bio: "A quiet cryptographer who sees patterns in ledgers, clocks, and nervous hands.",
+  },
+  {
+    id: "ophelia", name: "Ophelia Reed", title: "The Botanist", initials: "OR", color: "#9b83c5",
+    portraitIndex: 7, talent: "Identify natural traces", bio: "A renowned botanist whose flowers have solved more mysteries than witnesses.",
+  },
+  {
+    id: "bram", name: "Bram Locke", title: "The Virtuoso", initials: "BL", color: "#a7a167",
+    portraitIndex: 8, talent: "Reconstruct a sound", bio: "A jazz pianist with perfect timing and an ear for every footstep in the room.",
+  },
 ] as const;
 
 type Detective = (typeof detectiveRoster)[number];
 
 const initialDetectives = detectiveRoster.slice(0, 4);
+
+type NetworkRole = "solo" | "host" | "guest";
+type NetworkStatus = "offline" | "opening" | "waiting" | "connected" | "error";
+type GameSnapshot = {
+  scene: Scene;
+  caseVariant: number;
+  detectives: Detective[];
+  round: number;
+  diceValue: number | null;
+  diceFace: number;
+  movesLeft: number;
+  pathThisTurn: BoardNodeId[];
+  searchedThisTurn: boolean;
+  eventIndex: number | null;
+  boardNotice: string;
+  pawnPositions: Record<string, BoardNodeId>;
+  investigated: RoomId[];
+  activePlayerId: string;
+  moveHistory: string[];
+};
+
+type NetworkMessage =
+  | { type: "snapshot"; snapshot: GameSnapshot }
+  | { type: "hello"; name: string };
+
+const portraitStyle = (portraitIndex: number) =>
+  ({
+    "--portrait-column": portraitIndex % 5,
+    "--portrait-row": Math.floor(portraitIndex / 5),
+  }) as CSSProperties;
 
 function drawDetectives() {
   const companions = [...detectiveRoster.slice(1)];
@@ -467,16 +769,12 @@ const coordinateKey = (column: number, row: number) => `p-${column}-${row}`;
 
 const corridorCoordinates = (() => {
   const coordinates: Array<[number, number]> = [];
-  for (let column = 1; column <= 16; column += 1) {
-    coordinates.push([column, 4], [column, 9]);
+  for (let column = 1; column <= 20; column += 1) {
+    coordinates.push([column, 4], [column, 10], [column, 15]);
   }
-  for (let row = 1; row <= 10; row += 1) coordinates.push([5, row]);
-  for (let row = 1; row <= 14; row += 1) {
-    coordinates.push([11, row], [12, row]);
+  for (let row = 1; row <= 18; row += 1) {
+    coordinates.push([5, row], [9, row], [14, row]);
   }
-  for (let column = 11; column <= 16; column += 1) coordinates.push([column, 13]);
-  coordinates.push([14, 8], [3, 10], [8, 10]);
-
   return Array.from(
     new Map(
       coordinates.map(([column, row]) => [
@@ -561,10 +859,16 @@ const rules = [
 
 const menuItems = [
   {
-    label: "Enter Blackthorn",
-    detail: "Play the interactive manor board",
+    label: "Solo investigation",
+    detail: "Enter Blackthorn with three moving manor bots",
     icon: KeyRound,
     action: "case",
+  },
+  {
+    label: "Play with a friend",
+    detail: "Create an invite link; bots fill the empty seats",
+    icon: UsersRound,
+    action: "lobby",
   },
   {
     label: "How deduction works",
@@ -715,6 +1019,23 @@ export default function Home() {
   const [pawnPositions, setPawnPositions] = useState<Record<string, BoardNodeId>>(
     placeDetectives(initialDetectives),
   );
+  const [activePlayerId, setActivePlayerId] = useState<string>("you");
+  const [botsMoving, setBotsMoving] = useState(false);
+  const [movingDetectiveId, setMovingDetectiveId] = useState<string | null>(null);
+  const [moveHistory, setMoveHistory] = useState<string[]>([
+    "Avery Vane begins in the Grand Hall.",
+  ]);
+  const [networkRole, setNetworkRole] = useState<NetworkRole>("solo");
+  const [networkStatus, setNetworkStatus] = useState<NetworkStatus>("offline");
+  const [joinCode, setJoinCode] = useState("");
+  const [inviteLink, setInviteLink] = useState("");
+  const [friendConnected, setFriendConnected] = useState(false);
+  const [friendName, setFriendName] = useState("Guest investigator");
+  const [copyConfirmed, setCopyConfirmed] = useState(false);
+  const peerRef = useRef<Peer | null>(null);
+  const connectionRef = useRef<DataConnection | null>(null);
+  const snapshotRef = useRef<GameSnapshot | null>(null);
+  const applyingRemoteRef = useRef(false);
 
   const evidenceCount = investigated.length;
   const canAccuse = evidenceCount >= 4;
@@ -728,9 +1049,16 @@ export default function Home() {
     [caseVariant],
   );
   const activeRoomData = caseRooms.find((room) => room.id === activeRoom);
-  const currentRoom = caseRooms.find((room) => room.id === pawnPositions.you);
+  const activeDetective = detectives.find((detective) => detective.id === activePlayerId)
+    ?? detectives[0];
+  const localDetectiveId =
+    networkRole === "guest" ? detectives[1]?.id ?? "iris" : detectives[0]?.id ?? "you";
+  const isLocalTurn =
+    networkRole === "solo" || (friendConnected && activePlayerId === localDetectiveId);
+  const currentPawnNode = pawnPositions[activePlayerId] ?? "hall";
+  const currentRoom = caseRooms.find((room) => room.id === currentPawnNode);
   const currentLocationName = currentRoom?.name ?? "Manor corridor";
-  const reachableNodes = boardGraph[pawnPositions.you] ?? [];
+  const reachableNodes = boardGraph[currentPawnNode] ?? [];
   const hasRolled = diceValue !== null;
   const turnPhase: TurnPhase = diceRolling
     ? "roll"
@@ -752,10 +1080,200 @@ export default function Home() {
     );
   }, [soundOn, largeText, reducedMotion, captionsOn]);
 
+  useEffect(() => {
+    const room = new URLSearchParams(window.location.search).get("room");
+    if (!room) return;
+    const timer = window.setTimeout(() => {
+      setJoinCode(room);
+      setScene("lobby");
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(
+    () => () => {
+      connectionRef.current?.close();
+      peerRef.current?.destroy();
+    },
+    [],
+  );
+
+  useEffect(() => {
+    const snapshot: GameSnapshot = {
+      scene,
+      caseVariant,
+      detectives,
+      round,
+      diceValue,
+      diceFace,
+      movesLeft,
+      pathThisTurn,
+      searchedThisTurn,
+      eventIndex,
+      boardNotice,
+      pawnPositions,
+      investigated,
+      activePlayerId,
+      moveHistory,
+    };
+    snapshotRef.current = snapshot;
+
+    if (applyingRemoteRef.current) {
+      applyingRemoteRef.current = false;
+      return;
+    }
+    if (connectionRef.current?.open) {
+      connectionRef.current.send({ type: "snapshot", snapshot } satisfies NetworkMessage);
+    }
+  }, [
+    scene,
+    caseVariant,
+    detectives,
+    round,
+    diceValue,
+    diceFace,
+    movesLeft,
+    pathThisTurn,
+    searchedThisTurn,
+    eventIndex,
+    boardNotice,
+    pawnPositions,
+    investigated,
+    activePlayerId,
+    moveHistory,
+  ]);
+
   const clueProgress = useMemo(
     () => caseRooms.map((room) => investigated.includes(room.id)),
     [caseRooms, investigated],
   );
+
+  const disconnectNetwork = () => {
+    const connection = connectionRef.current;
+    const peer = peerRef.current;
+    connectionRef.current = null;
+    peerRef.current = null;
+    connection?.close();
+    peer?.destroy();
+    setFriendConnected(false);
+    setNetworkRole("solo");
+    setNetworkStatus("offline");
+    setInviteLink("");
+  };
+
+  const applyRemoteSnapshot = (snapshot: GameSnapshot) => {
+    applyingRemoteRef.current = true;
+    setScene(snapshot.scene);
+    setCaseVariant(snapshot.caseVariant);
+    setDetectives(snapshot.detectives);
+    setRound(snapshot.round);
+    setDiceValue(snapshot.diceValue);
+    setDiceFace(snapshot.diceFace);
+    setMovesLeft(snapshot.movesLeft);
+    setPathThisTurn(snapshot.pathThisTurn);
+    setSearchedThisTurn(snapshot.searchedThisTurn);
+    setEventIndex(snapshot.eventIndex);
+    setBoardNotice(snapshot.boardNotice);
+    setPawnPositions(snapshot.pawnPositions);
+    setInvestigated(snapshot.investigated);
+    setActivePlayerId(snapshot.activePlayerId);
+    setMoveHistory(snapshot.moveHistory);
+  };
+
+  const bindConnection = (connection: DataConnection, role: NetworkRole) => {
+    connectionRef.current?.close();
+    connectionRef.current = connection;
+    connection.on("open", () => {
+      setNetworkStatus("connected");
+      setFriendConnected(true);
+      connection.send({
+        type: "hello",
+        name: role === "guest" ? "Invited investigator" : "Host investigator",
+      } satisfies NetworkMessage);
+      if (role === "host" && snapshotRef.current) {
+        connection.send({
+          type: "snapshot",
+          snapshot: snapshotRef.current,
+        } satisfies NetworkMessage);
+      }
+      playChime(soundOn, true);
+    });
+    connection.on("data", (data) => {
+      const message = data as NetworkMessage;
+      if (message?.type === "snapshot" && message.snapshot) {
+        applyRemoteSnapshot(message.snapshot);
+      }
+      if (message?.type === "hello") {
+        setFriendName(message.name);
+      }
+    });
+    connection.on("close", () => {
+      connectionRef.current = null;
+      setFriendConnected(false);
+      setNetworkStatus(role === "host" ? "waiting" : "error");
+      setActivePlayerId("you");
+      setBoardNotice("Your friend disconnected. The manor bots will finish the case.");
+    });
+    connection.on("error", () => {
+      setNetworkStatus("error");
+      setFriendConnected(false);
+    });
+  };
+
+  const startHosting = async () => {
+    disconnectNetwork();
+    setNetworkRole("host");
+    setNetworkStatus("opening");
+    try {
+      const { Peer: PeerClient } = await import("peerjs");
+      const peer = new PeerClient();
+      peerRef.current = peer;
+      peer.on("open", (id) => {
+        const url = new URL(window.location.href);
+        url.search = "";
+        url.searchParams.set("room", id);
+        setInviteLink(url.toString());
+        setNetworkStatus("waiting");
+      });
+      peer.on("connection", (connection) => bindConnection(connection, "host"));
+      peer.on("error", () => setNetworkStatus("error"));
+    } catch {
+      setNetworkStatus("error");
+    }
+  };
+
+  const joinFriendGame = async () => {
+    const rawCode = joinCode.trim();
+    if (!rawCode) return;
+    let hostId = rawCode;
+    try {
+      hostId = new URL(rawCode).searchParams.get("room") ?? rawCode;
+    } catch {
+      // A bare peer code is already valid.
+    }
+    disconnectNetwork();
+    setNetworkRole("guest");
+    setNetworkStatus("opening");
+    try {
+      const { Peer: PeerClient } = await import("peerjs");
+      const peer = new PeerClient();
+      peerRef.current = peer;
+      peer.on("open", () => {
+        const connection = peer.connect(hostId, { reliable: true });
+        bindConnection(connection, "guest");
+      });
+      peer.on("error", () => setNetworkStatus("error"));
+    } catch {
+      setNetworkStatus("error");
+    }
+  };
+
+  const copyInvite = async () => {
+    if (!inviteLink) return;
+    await navigator.clipboard.writeText(inviteLink);
+    setCopyConfirmed(true);
+    window.setTimeout(() => setCopyConfirmed(false), 1800);
+  };
 
   const moveTo = (next: Scene) => {
     playChime(soundOn);
@@ -785,13 +1303,13 @@ export default function Home() {
   };
 
   const rollDice = () => {
-    if (diceRolling || hasRolled) return;
+    if (diceRolling || hasRolled || botsMoving || !isLocalTurn) return;
     const value = Math.floor(Math.random() * 6) + 1;
     const rollDuration = reducedMotion ? 280 : 760;
     const faceSequence = [2, 5, 3, 6, 1, 4, value];
     setDiceRolling(true);
     setEventIndex(null);
-    setPathThisTurn([pawnPositions.you]);
+    setPathThisTurn([currentPawnNode]);
     setBoardNotice("The wooden die tumbles across the velvet-lined tray...");
     playDiceRoll(soundOn, reducedMotion);
 
@@ -808,57 +1326,113 @@ export default function Home() {
       setDiceRolling(false);
       setBoardNotice(
         value === 1
-          ? "You rolled 1. Walk to one glowing marble space."
-          : `You rolled ${value}. Walk through up to ${value} connected spaces and enter a room.`,
+          ? `${activeDetective.name} rolled 1. Walk to one glowing marble space.`
+          : `${activeDetective.name} rolled ${value}. Walk through up to ${value} connected spaces and enter a room.`,
       );
     }, rollDuration);
   };
 
   const movePawn = (nodeId: BoardNodeId) => {
-    if (!hasRolled || movesLeft < 1 || !reachableNodes.includes(nodeId)) return;
+    if (
+      !hasRolled ||
+      movesLeft < 1 ||
+      !reachableNodes.includes(nodeId) ||
+      botsMoving ||
+      !isLocalTurn
+    ) return;
     const enteredRoom = caseRooms.find((room) => room.id === nodeId);
-    setPawnPositions((current) => ({ ...current, you: nodeId }));
+    const fromName =
+      caseRooms.find((room) => room.id === currentPawnNode)?.name ?? "Manor corridor";
+    const toName = enteredRoom?.name ?? "Manor corridor";
+    setPawnPositions((current) => ({ ...current, [activePlayerId]: nodeId }));
     setPathThisTurn((current) => [...current, nodeId]);
     setMovesLeft((current) => current - 1);
     setSearchedThisTurn(false);
+    setMoveHistory((current) =>
+      [`${activeDetective.name}: ${fromName} → ${toName}`, ...current].slice(0, 6),
+    );
     setBoardNotice(
       enteredRoom
         ? investigated.includes(enteredRoom.id)
-          ? `You walked into the ${enteredRoom.name}. Its strongest clue is already secured.`
-          : `You walked into the ${enteredRoom.name}. Search it now, or leave through the doorway.`
-        : "Your pawn advances across the marble corridor. Choose the next glowing space.",
+          ? `${activeDetective.name} entered the ${enteredRoom.name}. Its strongest clue is already secured.`
+          : `${activeDetective.name} entered the ${enteredRoom.name}. Search it now, or leave through the doorway.`
+        : `${activeDetective.name}'s pawn advances across the marble corridor.`,
     );
     playChime(soundOn);
   };
 
   const searchCurrentRoom = () => {
-    if (!hasRolled || searchedThisTurn || !currentRoom) return;
+    if (!hasRolled || searchedThisTurn || !currentRoom || botsMoving || !isLocalTurn) return;
     setSearchedThisTurn(true);
     setMovesLeft(0);
     inspectRoom(currentRoom);
     setBoardNotice(`${currentRoom.clue} was added to your private notebook.`);
   };
 
-  const endBoardTurn = () => {
+  const animateBotTurns = async () => {
     const nextEvent = Math.floor(Math.random() * manorEvents.length);
     setEventIndex(nextEvent);
-    setPawnPositions((current) => {
-      const next = { ...current };
-      for (const detective of detectives.slice(1)) {
-        const currentNode = current[detective.id] ?? "hall";
-        const choices = boardGraph[currentNode] ?? ["hall"];
-        next[detective.id] = choices[Math.floor(Math.random() * choices.length)] ?? "hall";
+    setBotsMoving(true);
+    const humanCount = friendConnected ? 2 : 1;
+    const botDetectives = detectives.slice(humanCount);
+    const nextPositions = { ...pawnPositions };
+
+    for (const detective of botDetectives) {
+      setMovingDetectiveId(detective.id);
+      const stepCount = 1 + Math.floor(Math.random() * 3);
+      let currentNode = nextPositions[detective.id] ?? "hall";
+      let previousNode: string | null = null;
+      for (let step = 0; step < stepCount; step += 1) {
+        const choices = (boardGraph[currentNode] ?? ["hall"]).filter(
+          (choice) => choice !== previousNode,
+        );
+        const nextNode =
+          choices[Math.floor(Math.random() * choices.length)] ??
+          boardGraph[currentNode]?.[0] ??
+          "hall";
+        previousNode = currentNode;
+        currentNode = nextNode;
+        nextPositions[detective.id] = nextNode;
+        setPawnPositions({ ...nextPositions });
+        const destination =
+          caseRooms.find((room) => room.id === nextNode)?.name ?? "marble corridor";
+        setBoardNotice(`${detective.name} moves to the ${destination}.`);
+        setMoveHistory((current) =>
+          [`${detective.name} → ${destination}`, ...current].slice(0, 6),
+        );
+        await new Promise((resolve) =>
+          window.setTimeout(resolve, reducedMotion ? 40 : 310),
+        );
       }
-      return next;
-    });
+    }
+    setMovingDetectiveId(null);
     setRound((current) => current + 1);
     setDiceValue(null);
     setDiceFace(6);
     setMovesLeft(0);
-    setPathThisTurn([pawnPositions.you]);
+    setActivePlayerId(detectives[0]?.id ?? "you");
+    setPathThisTurn([nextPositions[detectives[0]?.id ?? "you"] ?? "hall"]);
     setSearchedThisTurn(false);
-    setBoardNotice("The other detectives have moved. Your turn begins again.");
+    setBotsMoving(false);
+    setBoardNotice("The manor bots have completed their visible moves. Avery's turn begins.");
     playChime(soundOn);
+  };
+
+  const endBoardTurn = () => {
+    if (botsMoving || !isLocalTurn) return;
+    if (friendConnected && activePlayerId === detectives[0]?.id) {
+      const friendDetective = detectives[1];
+      setActivePlayerId(friendDetective.id);
+      setDiceValue(null);
+      setDiceFace(6);
+      setMovesLeft(0);
+      setPathThisTurn([pawnPositions[friendDetective.id] ?? "hall"]);
+      setSearchedThisTurn(false);
+      setBoardNotice(`${friendDetective.name}'s turn. Waiting for your friend to roll.`);
+      playChime(soundOn);
+      return;
+    }
+    void animateBotTurns();
   };
 
   const restartBoard = () => {
@@ -883,10 +1457,20 @@ export default function Home() {
     setSelectedMotive("");
     setWrongTheory(false);
     setPawnPositions(placeDetectives(nextDetectives));
+    setActivePlayerId(nextDetectives[0].id);
+    setBotsMoving(false);
+    setMovingDetectiveId(null);
+    setMoveHistory([`${nextDetectives[0].name} begins in the Grand Hall.`]);
     setBoardNotice(
       "A new case, detective table, and evidence trail are ready. Roll to leave the Grand Hall.",
     );
     playChime(soundOn);
+  };
+
+  const beginLobbyGame = (botsOnly = false) => {
+    if (botsOnly) disconnectNetwork();
+    restartBoard();
+    setScene("case");
   };
 
   const submitTheory = () => {
@@ -1202,9 +1786,155 @@ export default function Home() {
             <div className="menu-status">
               <div className="live-dot" />
               <span>Blackthorn table ready</span>
-              <small>You + 3 manor minds</small>
+              <small>Solo bots or a private friend table</small>
             </div>
           </nav>
+        </section>
+      )}
+
+      {scene === "lobby" && (
+        <section className="lobby-scene scene" aria-labelledby="lobby-title">
+          <div className="lobby-heading">
+            <div>
+              <p className="eyebrow">Private table · Two investigators + manor bots</p>
+              <h2 id="lobby-title">Invite a friend into the mystery.</h2>
+              <p>
+                Create a link, send it to one friend, and watch every human and bot
+                pawn cross Blackthorn together.
+              </p>
+            </div>
+            <div className={`connection-seal status-${networkStatus}`}>
+              <span />
+              <strong>
+                {friendConnected
+                  ? "Friend connected"
+                  : networkStatus === "waiting"
+                    ? "Invitation ready"
+                    : networkStatus === "opening"
+                      ? "Opening the table"
+                      : networkStatus === "error"
+                        ? "Connection interrupted"
+                        : "Table offline"}
+              </strong>
+              <small>
+                {friendConnected ? friendName : "Direct browser-to-browser play"}
+              </small>
+            </div>
+          </div>
+
+          <div className="lobby-layout">
+            <div className="invite-console">
+              <div className="invite-panel">
+                <span className="invite-number">01</span>
+                <div>
+                  <small>Host a table</small>
+                  <h3>Create an invitation</h3>
+                  <p>Your friend opens one link. No account or download is required.</p>
+                </div>
+                <button
+                  className="primary-button"
+                  onClick={startHosting}
+                  disabled={networkStatus === "opening" || friendConnected}
+                >
+                  <UsersRound size={17} />
+                  {inviteLink ? "Replace invitation" : "Create friend link"}
+                </button>
+              </div>
+
+              {inviteLink && (
+                <div className="invite-link-card">
+                  <div>
+                    <small>Private table link</small>
+                    <strong>{inviteLink}</strong>
+                  </div>
+                  <button className="secondary-button" onClick={copyInvite}>
+                    {copyConfirmed ? <Check size={17} /> : <KeyRound size={17} />}
+                    {copyConfirmed ? "Copied" : "Copy link"}
+                  </button>
+                </div>
+              )}
+
+              <div className="invite-divider">
+                <span />
+                or join your friend
+                <span />
+              </div>
+
+              <div className="join-panel">
+                <label htmlFor="friend-code">Invitation link or table code</label>
+                <div>
+                  <input
+                    id="friend-code"
+                    value={joinCode}
+                    onChange={(event) => setJoinCode(event.target.value)}
+                    placeholder="Paste your friend’s link"
+                    autoComplete="off"
+                  />
+                  <button
+                    className="secondary-button"
+                    onClick={joinFriendGame}
+                    disabled={!joinCode.trim() || networkStatus === "opening"}
+                  >
+                    Join table <ArrowRight size={17} />
+                  </button>
+                </div>
+              </div>
+
+              {networkStatus === "error" && (
+                <p className="connection-error" role="alert">
+                  The table could not connect. Check that both players are online and
+                  that the host still has the lobby open, then try the invitation again.
+                </p>
+              )}
+
+              <div className="lobby-actions">
+                <button
+                  className="primary-button"
+                  onClick={() => beginLobbyGame(false)}
+                  disabled={networkRole !== "host" || !friendConnected}
+                >
+                  Begin friend match <ArrowRight size={17} />
+                </button>
+                <button className="secondary-button" onClick={() => beginLobbyGame(true)}>
+                  Play now with three bots
+                </button>
+              </div>
+
+              <p className="peer-note">
+                The invite service introduces the two browsers; game moves travel directly
+                between players. Keep this tab open while playing.
+              </p>
+            </div>
+
+            <aside className="cast-gallery" aria-label="Blackthorn detective roster">
+              <div className="panel-label">
+                <span>Original detective cast</span>
+                <Shuffle size={15} />
+              </div>
+              <p>Four cards are drawn for each case. Empty friend seats become bots.</p>
+              <div className="character-card-grid">
+                {detectiveRoster.map((detective) => (
+                  <article className="character-card" key={detective.id}>
+                    <div
+                      className="character-portrait"
+                      style={portraitStyle(detective.portraitIndex)}
+                      role="img"
+                      aria-label={`Portrait of ${detective.name}`}
+                    />
+                    <div>
+                      <small>{detective.title}</small>
+                      <strong>{detective.name}</strong>
+                      <p>{detective.bio}</p>
+                      <span>
+                        <Sparkles size={12} />
+                        {detective.talent}
+                      </span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </aside>
+          </div>
         </section>
       )}
 
@@ -1238,7 +1968,10 @@ export default function Home() {
           </div>
 
           <div className="tabletop-status">
-            <span><UsersRound size={15} /> Family table · You + 3 manor minds</span>
+            <span>
+              <UsersRound size={15} />
+              {friendConnected ? "Private table · 2 players + 2 bots" : "Solo table · You + 3 bots"}
+            </span>
             <strong>Round {round}</strong>
             <div className="veil-pips" aria-label={`Veil track, round ${round} of 8`}>
               {Array.from({ length: 8 }).map((_, index) => (
@@ -1273,20 +2006,48 @@ export default function Home() {
               </div>
               <div className="detective-stack">
                 {detectives.map((detective, index) => (
-                  <article className={index === 0 ? "active" : ""} key={detective.id}>
+                  <article
+                    className={detective.id === activePlayerId ? "active" : ""}
+                    key={detective.id}
+                  >
                     <div
-                      className="detective-token"
-                      style={{ "--player-color": detective.color } as CSSProperties}
-                    >
-                      {detective.initials}
-                    </div>
+                      className="detective-card-portrait"
+                      style={{
+                        ...portraitStyle(detective.portraitIndex),
+                        "--player-color": detective.color,
+                      } as CSSProperties}
+                      role="img"
+                      aria-label={`${detective.name}, ${detective.title}`}
+                    />
                     <span>
                       <strong>{detective.name}</strong>
                       <small>{detective.title}</small>
                     </span>
-                    {index === 0 ? <b>Your turn</b> : <i>{index + 1}</i>}
+                    {detective.id === activePlayerId ? (
+                      <b>
+                        {isLocalTurn
+                          ? "Your turn"
+                          : friendConnected
+                            ? "Friend turn"
+                            : "Moving"}
+                      </b>
+                    ) : (
+                      <i>{friendConnected && index === 1 ? "F" : "BOT"}</i>
+                    )}
                   </article>
                 ))}
+              </div>
+
+              <div className="movement-ledger">
+                <small>Visible move ledger</small>
+                <ol>
+                  {moveHistory.slice(0, 4).map((entry, index) => (
+                    <li key={`${entry}-${index}`}>
+                      <Footprints size={12} />
+                      {entry}
+                    </li>
+                  ))}
+                </ol>
               </div>
 
               <div className="evidence-meter">
@@ -1303,8 +2064,21 @@ export default function Home() {
 
             <div className="manor-board-wrap">
               <div className="board-ribbon">
-                <span><CircleDot size={14} /> Your pawn is in the {currentLocationName}</span>
-                <strong>{movesLeft > 0 ? `${movesLeft} moves left` : hasRolled ? "Choose an action" : "Awaiting roll"}</strong>
+                <span>
+                  <CircleDot size={14} />
+                  {activeDetective.name}&apos;s pawn is in the {currentLocationName}
+                </span>
+                <strong>
+                  {botsMoving
+                    ? "Manor bots moving"
+                    : !isLocalTurn
+                      ? "Watching your friend"
+                      : movesLeft > 0
+                        ? `${movesLeft} moves left`
+                        : hasRolled
+                          ? "Choose an action"
+                          : "Awaiting roll"}
+                </strong>
               </div>
               <div className="manor-board" aria-label="Interactive Blackthorn Manor board">
                 <div className="board-atmosphere" aria-hidden="true" />
@@ -1314,8 +2088,12 @@ export default function Home() {
                   );
                   const pathStep = pathThisTurn.lastIndexOf(space.id);
                   const reachable =
-                    hasRolled && movesLeft > 0 && reachableNodes.includes(space.id);
-                  const current = pawnPositions.you === space.id;
+                    hasRolled &&
+                    movesLeft > 0 &&
+                    isLocalTurn &&
+                    !botsMoving &&
+                    reachableNodes.includes(space.id);
+                  const current = currentPawnNode === space.id;
                   return (
                     <button
                       key={space.id}
@@ -1329,7 +2107,7 @@ export default function Home() {
                       onClick={() => movePawn(space.id)}
                       disabled={!reachable}
                       aria-label={`Marble hallway space ${spaceIndex + 1}${
-                        current ? ", your current position" : ""
+                        current ? `, ${activeDetective.name}'s current position` : ""
                       }${reachable ? ", reachable" : ""}`}
                     >
                       <span className="floor-inlay" aria-hidden="true" />
@@ -1338,9 +2116,13 @@ export default function Home() {
                           <i
                             key={detective.id}
                             title={detective.name}
+                            className={movingDetectiveId === detective.id ? "moving" : ""}
                             style={{ "--player-color": detective.color } as CSSProperties}
                           >
-                            <span className="pawn-head" />
+                            <span
+                              className="pawn-head"
+                              style={portraitStyle(detective.portraitIndex)}
+                            />
                             <span className="pawn-body" />
                             <b>{detective.initials.slice(0, 1)}</b>
                           </i>
@@ -1360,8 +2142,12 @@ export default function Home() {
                   );
                   const pathStep = pathThisTurn.lastIndexOf(room.id);
                   const reachable =
-                    hasRolled && movesLeft > 0 && reachableNodes.includes(room.id);
-                  const current = pawnPositions.you === room.id;
+                    hasRolled &&
+                    movesLeft > 0 &&
+                    isLocalTurn &&
+                    !botsMoving &&
+                    reachableNodes.includes(room.id);
+                  const current = currentPawnNode === room.id;
                   return (
                     <button
                       key={room.id}
@@ -1377,7 +2163,7 @@ export default function Home() {
                       } as CSSProperties}
                       onClick={() => movePawn(room.id)}
                       disabled={!reachable}
-                      aria-label={`${room.name}${current ? ", your current room" : ""}${
+                      aria-label={`${room.name}${current ? `, ${activeDetective.name}'s current room` : ""}${
                         reachable ? ", enter room" : ""
                       }`}
                     >
@@ -1401,9 +2187,13 @@ export default function Home() {
                           <i
                             key={detective.id}
                             title={detective.name}
+                            className={movingDetectiveId === detective.id ? "moving" : ""}
                             style={{ "--player-color": detective.color } as CSSProperties}
                           >
-                            <span className="pawn-head" />
+                            <span
+                              className="pawn-head"
+                              style={portraitStyle(detective.portraitIndex)}
+                            />
                             <span className="pawn-body" />
                             <b>{detective.initials.slice(0, 1)}</b>
                           </i>
@@ -1441,7 +2231,7 @@ export default function Home() {
                 <button
                   className={`brass-die ${diceRolling ? "rolling" : ""}`}
                   onClick={rollDice}
-                  disabled={hasRolled || diceRolling}
+                  disabled={hasRolled || diceRolling || botsMoving || !isLocalTurn}
                   aria-label={hasRolled ? `Rolled ${diceValue}` : "Roll the six-sided movement die"}
                 >
                   <span className="die-face" aria-hidden="true">
@@ -1467,7 +2257,13 @@ export default function Home() {
                 <button
                   className="table-action search-action"
                   onClick={searchCurrentRoom}
-                  disabled={!hasRolled || searchedThisTurn || !currentRoom}
+                  disabled={
+                    !hasRolled ||
+                    searchedThisTurn ||
+                    !currentRoom ||
+                    botsMoving ||
+                    !isLocalTurn
+                  }
                 >
                   <Search size={18} />
                   <span>
@@ -1478,7 +2274,7 @@ export default function Home() {
                 <button
                   className="table-action"
                   onClick={endBoardTurn}
-                  disabled={!hasRolled}
+                  disabled={!hasRolled || botsMoving || !isLocalTurn}
                 >
                   <ArrowRight size={18} />
                   <span>

@@ -12,10 +12,14 @@ The first-launch vertical slice includes:
 - Cinematic velvet-curtain opening with an original gold-and-crimson eye sigil,
   storm-lit manor silhouette, embers, metallic title shimmer, and entrance transition
 - Three-step visual rules sequence
-- Walkable nine-room manor floor plan with individual marble hallway spaces
+- Walkable fifteen-location manor floor plan with individual marble hallway spaces
 - Enterable, furnished rooms with working doorways and room-only searches
 - Physical six-sided die with a licensed wooden-table roll recording
 - Ten-character detective roster that draws a different four-player table for each new case
+- Ten illustrated original character cards with biographies and investigation talents
+- Private two-player WebRTC invite links with bots filling the remaining seats
+- Synchronized dice, clue, turn, pawn, and movement-ledger state between both players
+- Visible step-by-step bot movement instead of instant pawn teleporting
 - Three coherent evidence editions with different room clues, notes, and observations
 - Four sculpted detective pawns, a four-step turn rail, movement points, and turn order
 - Rival movement, round pressure, and flipping manor-event cards
@@ -30,11 +34,9 @@ The first-launch vertical slice includes:
 
 ## Product direction
 
-The next production milestone turns the local tabletop case into a multiplayer
-lobby and synchronized match shell. The game will then add deterministic
-mystery generation, server-authoritative phase control, player roles,
-discussion tools, voice controls, moderation, progression, and the complete
-Blackthorn room set.
+The next production milestone strengthens connection recovery and adds
+server-authoritative public matchmaking, player-selected character abilities,
+discussion tools, voice controls, moderation, and progression.
 
 See [docs/PRODUCT_BRIEF.md](docs/PRODUCT_BRIEF.md) and
 [docs/ROADMAP.md](docs/ROADMAP.md) for the source-of-truth design and delivery

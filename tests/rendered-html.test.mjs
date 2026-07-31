@@ -46,9 +46,10 @@ test("publishes branded social metadata and artwork", async () => {
   const html = await response.text();
 
   assert.match(html, /property="og:title" content="Veil of Secrets"/i);
-  assert.match(html, /https:\/\/veil-of-secrets\.example\/og\.png/);
+  assert.match(html, /https:\/\/veil-of-secrets\.example\/og-multiplayer\.png/);
   assert.match(html, /name="twitter:card" content="summary_large_image"/i);
   await access(new URL("../public/og.png", import.meta.url));
+  await access(new URL("../public/og-multiplayer.png", import.meta.url));
 });
 
 test("keeps the full tabletop case and accessibility controls in source", async () => {
@@ -60,19 +61,30 @@ test("keeps the full tabletop case and accessibility controls in source", async 
 
   for (const room of [
     "observatory",
+    "attic",
     "library",
     "study",
+    "masterBedroom",
     "ballroom",
     "hall",
+    "guestSuite",
     "dining",
+    "garden",
     "conservatory",
     "cellar",
     "kitchen",
+    "basement",
+    "secretPassage",
   ]) {
     assert.match(page, new RegExp(`id: "${room}"`));
   }
 
   assert.match(page, /const rollDice/);
+  assert.match(page, /startHosting/);
+  assert.match(page, /joinFriendGame/);
+  assert.match(page, /animateBotTurns/);
+  assert.match(page, /Visible move ledger/);
+  assert.match(page, /portraitIndex/);
   assert.match(page, /const enterManor/);
   assert.match(page, /openingDeparting/);
   assert.match(page, /veil-sigil/);
@@ -102,7 +114,8 @@ test("keeps the full tabletop case and accessibility controls in source", async 
   assert.match(page, /pawn-head/);
   assert.match(page, /Movement tray/);
   assert.match(page, /manorEvents/);
-  assert.match(page, /You \+ 3 manor minds/);
+  assert.match(page, /2 players \+ 2 bots/);
+  assert.match(page, /Solo table · You \+ 3 bots/);
   assert.match(page, /selectedSuspect === "celia"/);
   assert.match(page, /Silver letter opener/);
   assert.match(page, /To conceal the stolen estate funds/);
@@ -111,6 +124,11 @@ test("keeps the full tabletop case and accessibility controls in source", async 
   assert.match(page, /captionsOn/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
   assert.match(css, /\.manor-board/);
+  assert.match(css, /\.character-card-grid/);
+  assert.match(css, /\.character-portrait/);
+  assert.match(css, /blackthorn-cast-sheet\.png/);
+  assert.match(css, /\.movement-ledger/);
+  assert.match(css, /@keyframes pawn-visible-step/);
   assert.match(css, /\.opening-cinematic-bg/);
   assert.match(css, /\.veil-sigil/);
   assert.match(css, /\.velvet-curtain/);
@@ -127,6 +145,8 @@ test("keeps the full tabletop case and accessibility controls in source", async 
   assert.match(css, /\.brass-die/);
   assert.match(css, /@keyframes roll-die/);
   assert.match(packageJson, /"lucide-react"/);
+  assert.match(packageJson, /"peerjs"/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
   await access(new URL("../public/audio/dice-roll-wood.mp3", import.meta.url));
+  await access(new URL("../public/characters/blackthorn-cast-sheet.png", import.meta.url));
 });

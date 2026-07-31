@@ -20,7 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const host = requestHeaders.get("host") ?? "veil-of-secrets.local";
   const protocol = host.includes("localhost") ? "http" : "https";
   const origin = new URL(`${protocol}://${host}`);
-  const socialImage = new URL("/og.png", origin).toString();
+  const socialImage = new URL("/og-multiplayer.png", origin).toString();
 
   return {
     metadataBase: origin,
@@ -40,7 +40,12 @@ export async function generateMetadata(): Promise<Metadata> {
         "Every room remembers. Every witness edits the truth. Enter Blackthorn Manor.",
       type: "website",
       url: origin,
-      images: [{ url: socialImage, width: 1200, height: 630, alt: "Veil of Secrets at Blackthorn Manor" }],
+      images: [{
+        url: socialImage,
+        width: 1672,
+        height: 941,
+        alt: "Four Veil of Secrets detectives gathered around the Blackthorn Manor board",
+      }],
     },
     twitter: {
       card: "summary_large_image",
