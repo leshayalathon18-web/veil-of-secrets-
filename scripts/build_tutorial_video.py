@@ -129,6 +129,20 @@ ELDRIN_SEGMENTS = (
     (82.746, 98.270),
 )
 
+# Speech windows measured from the pitch-preserving, chapter-retimed Eldrin
+# stems. These drive both the burned-in narrator line and the WebVTT track.
+# Keeping silence outside each window prevents captions from racing ahead
+# during Eldrin's deliberate sentence pauses.
+CAPTION_WINDOWS = (
+    ((0.000, 7.284), (8.017, 11.396)),
+    ((0.785, 2.335), (3.105, 5.335), (5.819, 11.429)),
+    ((0.738, 2.709), (3.270, 8.482), (9.446, 11.292)),
+    ((0.574, 2.075), (2.617, 7.246), (7.979, 11.506)),
+    ((0.673, 2.889), (3.581, 7.374), (8.215, 11.445)),
+    ((0.669, 2.186), (2.627, 6.237), (7.050, 11.451)),
+    ((0.569, 4.884), (5.613, 8.359), (9.074, 12.100)),
+)
+
 
 def font(name: str, size: int) -> ImageFont.FreeTypeFont:
     fonts = Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts"
@@ -408,9 +422,13 @@ def draw_die(draw: ImageDraw.ImageDraw, center: tuple[int, int], face: int, angl
         draw.ellipse((x - 9, y - 9, x + 9, y + 9), fill="#2a1713")
 
 
-def caption_for(chapter: Chapter, local: float) -> str:
-    index = min(len(chapter.captions) - 1, int(local * len(chapter.captions)))
-    return chapter.captions[index]
+def caption_for(chapter_index: int, local: float) -> str:
+    local_seconds = local * CHAPTER_SECONDS
+    chapter = CHAPTERS[chapter_index]
+    for caption, (start, end) in zip(chapter.captions, CAPTION_WINDOWS[chapter_index]):
+        if start <= local_seconds <= end:
+            return caption
+    return ""
 
 
 def render_scene(chapter_index: int, local: float, frame_index: int) -> Image.Image:
@@ -658,11 +676,12 @@ def write_captions(starts: list[float]) -> Path:
     target = OUTPUT / "veil-of-secrets-tutorial.vtt"
     lines = ["WEBVTT", ""]
     cue = 1
-    for chapter, start in zip(CHAPTERS, starts):
-        slot = CHAPTER_SECONDS / len(chapter.captions)
-        for index, caption in enumerate(chapter.captions):
-            cue_start = start + index * slot
-            cue_end = start + (index + 1) * slot - 0.12
+    for chapter_index, (chapter, start) in enumerate(zip(CHAPTERS, starts)):
+        for caption, (local_start, local_end) in zip(
+            chapter.captions, CAPTION_WINDOWS[chapter_index]
+        ):
+            cue_start = start + local_start
+            cue_end = start + local_end
             lines.extend((str(cue), f"{timecode(cue_start)} --> {timecode(cue_end)}", caption, ""))
             cue += 1
     target.write_text("\n".join(lines), encoding="utf-8")
@@ -693,7 +712,7 @@ def render_video(starts: list[float], duration: float) -> tuple[Path, Path]:
                 chapter_start = starts[chapter_index]
                 local = max(0.0, min(0.999, (time - chapter_start) / CHAPTER_SECONDS))
             frame = render_scene(chapter_index, local, frame_index)
-            caption = caption_for(CHAPTERS[chapter_index], local)
+            caption = caption_for(chapter_index, local)
             draw_chrome(frame, chapter_index, time / duration, caption)
             if frame_index == poster_frame:
                 frame.convert("RGB").save(poster, quality=91, optimize=True)
