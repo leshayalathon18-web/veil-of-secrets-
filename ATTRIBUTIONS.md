@@ -38,7 +38,9 @@ by jaku5 (Freesound), downloaded from Pixabay and used under the
 [Pixabay Content License](https://pixabay.com/service/license-summary/).
 The recording is stored as `public/audio/dice-roll-wood.mp3`.
 
-The tutorial narrator is **Eldrin – Crisp British Baritone**, generated for
-this project with ElevenLabs Eleven v3 on July 31, 2026. The authored narration
-and resulting production take are used under the connected ElevenLabs account
-terms.
+The tutorial's four narrator takes were generated specifically for this
+project with ElevenLabs Eleven v3 on July 31, 2026. The cast is **Eldrin - Crisp
+British Baritone**, **Mara Ashford**, **Beatrice Vale**, and **Rowan Black**.
+Mara, Beatrice, and Rowan are original voices created with ElevenLabs Voice
+Design for this game. The authored narration and resulting production takes
+are used under the connected ElevenLabs account terms.
