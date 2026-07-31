@@ -1833,6 +1833,9 @@ export default function Home() {
   const [captionsOn, setCaptionsOn] = useState(() =>
     readPreference("captionsOn", true),
   );
+  const [witnessSpeaking, setWitnessSpeaking] = useState(false);
+  const [witnessHasPlayed, setWitnessHasPlayed] = useState(false);
+  const [witnessSpeechError, setWitnessSpeechError] = useState("");
   const [tutorialNarrator, setTutorialNarrator] = useState<TutorialNarratorId>(() => {
     if (typeof window === "undefined") return "eldrin";
     const saved = window.localStorage.getItem("veil-tutorial-narrator");
@@ -1909,6 +1912,7 @@ export default function Home() {
   const reconnectTimerRef = useRef<number | null>(null);
   const tutorialVideoRef = useRef<HTMLVideoElement | null>(null);
   const tutorialAudioRef = useRef<HTMLAudioElement | null>(null);
+  const witnessUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const joinFriendGameRef = useRef<
     (codeOverride?: string, passwordOverride?: string) => Promise<void>
   >(async () => {});
@@ -1924,6 +1928,7 @@ export default function Home() {
     currentCase.suspects.find(
       (suspect) => suspect.id !== currentCase.solution.suspect,
     ) ?? currentCase.suspects[0]!;
+  const witnessStatement = `I saw ${currentCase.suspects[0].name} near ${currentCase.locations[1]} before ${currentCase.victim} was found. Decide together: memory, mistake, or deliberate misdirection?`;
   const caseRooms = useMemo(
     () =>
       rooms.map((room) => ({
@@ -1974,6 +1979,24 @@ export default function Home() {
       JSON.stringify({ soundOn, largeText, reducedMotion, captionsOn }),
     );
   }, [soundOn, largeText, reducedMotion, captionsOn]);
+
+  useEffect(() => {
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    witnessUtteranceRef.current = null;
+    const resetPlayback = window.setTimeout(() => {
+      setWitnessSpeaking(false);
+      setWitnessHasPlayed(false);
+      setWitnessSpeechError("");
+    }, 0);
+    return () => window.clearTimeout(resetPlayback);
+  }, [caseVariant, scene]);
+
+  useEffect(
+    () => () => {
+      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    },
+    [],
+  );
 
   useEffect(() => {
     window.localStorage.setItem("veil-tutorial-narrator", tutorialNarrator);
@@ -2909,6 +2932,98 @@ export default function Home() {
       "A new case, detective table, and evidence trail are ready. Roll to leave the Grand Hall.",
     );
     playChime(soundOn);
+  };
+
+  const stopWitnessStatement = () => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    witnessUtteranceRef.current = null;
+    setWitnessSpeaking(false);
+  };
+
+  const playWitnessStatement = () => {
+    if (
+      typeof window === "undefined" ||
+      !("speechSynthesis" in window) ||
+      typeof window.SpeechSynthesisUtterance === "undefined"
+    ) {
+      setWitnessSpeechError("Voice playback is unavailable in this browser. The full transcript remains on screen.");
+      return;
+    }
+
+    const speech = window.speechSynthesis;
+    speech.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(witnessStatement);
+    const feminineWitnesses = new Set(["celia", "mirelle", "beatrice", "agatha", "isolde"]);
+    const feminineVoices = [
+      "Sonia",
+      "Libby",
+      "Serena",
+      "Martha",
+      "Kate",
+      "Google UK English Female",
+      "Microsoft Zira",
+    ];
+    const masculineVoices = [
+      "Ryan",
+      "George",
+      "Daniel",
+      "Oliver",
+      "Arthur",
+      "Google UK English Male",
+      "Microsoft David",
+    ];
+    const preferredVoices = feminineWitnesses.has(tableWitness.id)
+      ? feminineVoices
+      : masculineVoices;
+    const availableVoices = speech.getVoices();
+    const englishVoices = availableVoices.filter((voice) =>
+      voice.lang.toLowerCase().startsWith("en"),
+    );
+    const preferredVoice = preferredVoices
+      .map((name) =>
+        englishVoices.find((voice) =>
+          voice.name.toLowerCase().includes(name.toLowerCase()),
+        ),
+      )
+      .find((voice): voice is SpeechSynthesisVoice => Boolean(voice));
+    const voicePool = englishVoices.length > 0 ? englishVoices : availableVoices;
+    const voiceIndex = Math.abs(
+      [...tableWitness.id].reduce((total, character) => total + character.charCodeAt(0), 0),
+    ) % Math.max(voicePool.length, 1);
+
+    utterance.voice = preferredVoice ?? voicePool[voiceIndex] ?? null;
+    utterance.lang = utterance.voice?.lang || "en-GB";
+    utterance.rate = 0.88;
+    utterance.pitch = feminineWitnesses.has(tableWitness.id) ? 1.02 : 0.92;
+    utterance.volume = 0.96;
+    utterance.onstart = () => {
+      if (witnessUtteranceRef.current !== utterance) return;
+      setWitnessSpeaking(true);
+      setWitnessSpeechError("");
+    };
+    utterance.onend = () => {
+      if (witnessUtteranceRef.current !== utterance) return;
+      witnessUtteranceRef.current = null;
+      setWitnessSpeaking(false);
+      setWitnessHasPlayed(true);
+    };
+    utterance.onerror = (event) => {
+      if (witnessUtteranceRef.current !== utterance) return;
+      witnessUtteranceRef.current = null;
+      setWitnessSpeaking(false);
+      if (event.error !== "canceled" && event.error !== "interrupted") {
+        setWitnessSpeechError("The voice could not start. Tap again or read the on-screen transcript.");
+      }
+    };
+
+    witnessUtteranceRef.current = utterance;
+    setWitnessSpeechError("");
+    if (!soundOn) setSoundOn(true);
+    speech.speak(utterance);
+    if (speech.paused) speech.resume();
   };
 
   const beginLobbyGame = (botsOnly = false) => {
@@ -4129,23 +4244,49 @@ export default function Home() {
             </aside>
           </div>
 
-          <aside className="witness-strip tabletop-talk">
-            <div className="witness-icon">
+          <aside
+            className={`witness-strip tabletop-talk ${witnessSpeaking ? "is-speaking" : ""}`}
+            aria-label={`${tableWitness.name}'s witness statement`}
+          >
+            <div className={`witness-icon ${witnessSpeaking ? "is-speaking" : ""}`}>
               <Mic size={20} />
               <span />
             </div>
-            <div>
+            <div className="witness-transcript">
               <small>Table talk · {tableWitness.name}&apos;s statement</small>
-              <p>
-                “I saw {currentCase.suspects[0].name} near{" "}
-                {currentCase.locations[1]} before {currentCase.victim} was found.”
-                Decide together: memory, mistake, or deliberate misdirection?
-              </p>
+              <p>“{witnessStatement}”</p>
+              <span className="transcript-label">
+                <Captions size={13} aria-hidden="true" />
+                On-screen transcript
+              </span>
             </div>
-            <span className="caption-badge">
-              <Headphones size={14} />
-              {captionsOn ? "Captioned" : "Audio available"}
-            </span>
+            <div className="witness-audio-controls">
+              <button
+                type="button"
+                className={`caption-badge witness-audio-button ${witnessSpeaking ? "is-speaking" : ""}`}
+                onClick={witnessSpeaking ? stopWitnessStatement : playWitnessStatement}
+                aria-label={witnessSpeaking ? "Stop witness statement" : `${witnessHasPlayed ? "Replay" : "Play"} ${tableWitness.name}'s statement`}
+              >
+                {witnessSpeaking ? <Volume2 size={15} /> : <Play size={15} />}
+                <span>
+                  {witnessSpeaking
+                    ? "Speaking · tap to stop"
+                    : witnessHasPlayed
+                      ? "Replay statement"
+                      : "Play statement"}
+                </span>
+                <i className="witness-level" aria-hidden="true">
+                  <b />
+                  <b />
+                  <b />
+                </i>
+              </button>
+              {witnessSpeechError && (
+                <small className="witness-audio-error" role="status">
+                  {witnessSpeechError}
+                </small>
+              )}
+            </div>
           </aside>
         </section>
       )}
