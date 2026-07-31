@@ -2281,6 +2281,18 @@ export default function Home() {
     setScene(next);
   };
 
+  const returnToMainMenu = () => {
+    playChime(soundOn);
+    setNotebookOpen(false);
+    setSettingsOpen(false);
+    setAccusationOpen(false);
+    setWrongTheory(false);
+    setTutorialStarted(false);
+    setTutorialComplete(false);
+    setScene("menu");
+    window.scrollTo({ top: 0, behavior: reducedMotion ? "auto" : "smooth" });
+  };
+
   const enterManor = () => {
     if (openingDeparting) return;
     playChime(soundOn, true);
@@ -2512,12 +2524,17 @@ export default function Home() {
       {scene !== "opening" && (
         <header className="topbar">
           <button
+            type="button"
             className="brand-lockup"
-            onClick={() => moveTo("menu")}
-            aria-label="Return to main menu"
+            onClick={returnToMainMenu}
+            aria-label="Return to Veil of Secrets main menu"
+            title="Return to main menu"
           >
             <span className="brand-mark" aria-hidden="true">
-              V
+              <span
+                className="brand-mark-art"
+                style={{ backgroundImage: "url('./branding/veil-sigil-v2.png')" }}
+              />
             </span>
             <span>
               <strong>Veil of Secrets</strong>

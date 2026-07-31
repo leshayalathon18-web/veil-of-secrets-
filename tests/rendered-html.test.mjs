@@ -104,6 +104,10 @@ test("keeps the full tabletop case and accessibility controls in source", async 
   assert.match(page, /veil-sigil/);
   assert.match(page, /sigil-crest-art/);
   assert.match(page, /veil-sigil-v2\.png/);
+  assert.match(page, /const returnToMainMenu/);
+  assert.match(page, /Return to Veil of Secrets main menu/);
+  assert.match(page, /className="brand-mark-art"/);
+  assert.match(css, /\.brand-mark-art/);
   assert.doesNotMatch(page, /sigil-eye-shell/);
   assert.match(page, /velvet-curtain/);
   assert.match(page, /opening-embers/);
