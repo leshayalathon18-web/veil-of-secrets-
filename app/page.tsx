@@ -41,6 +41,7 @@ import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react"
 type Scene = "opening" | "rules" | "case" | "verdict" | "menu" | "lobby";
 type TurnPhase = "roll" | "move" | "search" | "end";
 type NotebookTab = "evidence" | "timeline" | "suspects";
+type TutorialNarratorId = "eldrin" | "mara" | "beatrice" | "rowan";
 type RoomId =
   | "observatory"
   | "attic"
@@ -1627,6 +1628,48 @@ const tutorialChapters = [
   },
 ];
 
+const tutorialNarrators: Array<{
+  id: TutorialNarratorId;
+  name: string;
+  cast: "Woman" | "Man";
+  register: string;
+  direction: string;
+  audioSource: string | null;
+}> = [
+  {
+    id: "eldrin",
+    name: "Eldrin",
+    cast: "Man",
+    register: "Crisp British baritone",
+    direction: "Controlled, trustworthy, classic manor host",
+    audioSource: null,
+  },
+  {
+    id: "mara",
+    name: "Mara Ashford",
+    cast: "Woman",
+    register: "Poised RP mezzo",
+    direction: "Intelligent, cinematic, quietly commanding",
+    audioSource: "./tutorial/mara-ashford-narration-compact.mp3",
+  },
+  {
+    id: "beatrice",
+    name: "Beatrice Vale",
+    cast: "Woman",
+    register: "Warm British contralto",
+    direction: "Intimate, theatrical, rich with suspense",
+    audioSource: "./tutorial/beatrice-vale-narration-compact.mp3",
+  },
+  {
+    id: "rowan",
+    name: "Rowan Black",
+    cast: "Man",
+    register: "Northern British baritone",
+    direction: "Grounded, weathered, prestige detective",
+    audioSource: "./tutorial/rowan-black-narration-compact.mp3",
+  },
+];
+
 const menuItems = [
   {
     label: "Solo investigation",
@@ -1790,6 +1833,13 @@ export default function Home() {
   const [captionsOn, setCaptionsOn] = useState(() =>
     readPreference("captionsOn", true),
   );
+  const [tutorialNarrator, setTutorialNarrator] = useState<TutorialNarratorId>(() => {
+    if (typeof window === "undefined") return "eldrin";
+    const saved = window.localStorage.getItem("veil-tutorial-narrator");
+    return tutorialNarrators.some((narrator) => narrator.id === saved)
+      ? saved as TutorialNarratorId
+      : "eldrin";
+  });
   const [selectedSuspect, setSelectedSuspect] = useState("");
   const [selectedMethod, setSelectedMethod] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("");
@@ -1858,12 +1908,16 @@ export default function Home() {
   const guestTargetRef = useRef<{ hostId: string; passwordHash: string } | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
   const tutorialVideoRef = useRef<HTMLVideoElement | null>(null);
+  const tutorialAudioRef = useRef<HTMLAudioElement | null>(null);
   const joinFriendGameRef = useRef<
     (codeOverride?: string, passwordOverride?: string) => Promise<void>
   >(async () => {});
   const reconnectGuestRef = useRef<() => void>(() => {});
 
   const evidenceCount = investigated.length;
+  const activeTutorialNarrator =
+    tutorialNarrators.find((narrator) => narrator.id === tutorialNarrator)
+    ?? tutorialNarrators[0];
   const canAccuse = evidenceCount >= 4;
   const currentCase = caseFiles[caseVariant];
   const tableWitness =
@@ -1920,6 +1974,50 @@ export default function Home() {
       JSON.stringify({ soundOn, largeText, reducedMotion, captionsOn }),
     );
   }, [soundOn, largeText, reducedMotion, captionsOn]);
+
+  useEffect(() => {
+    window.localStorage.setItem("veil-tutorial-narrator", tutorialNarrator);
+    const video = tutorialVideoRef.current;
+    const audio = tutorialAudioRef.current;
+    if (!video) return;
+    video.pause();
+    video.currentTime = 0;
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.load();
+    }
+    setTutorialStarted(false);
+    setTutorialComplete(false);
+  }, [tutorialNarrator]);
+
+  useEffect(() => {
+    const video = tutorialVideoRef.current;
+    const audio = tutorialAudioRef.current;
+    if (!audio || !activeTutorialNarrator.audioSource) return;
+    audio.muted = !soundOn;
+    if (!soundOn) {
+      audio.pause();
+      return;
+    }
+    if (video && !video.paused) {
+      audio.currentTime = video.currentTime;
+      void audio.play().catch(() => undefined);
+    }
+  }, [activeTutorialNarrator.audioSource, soundOn]);
+
+  useEffect(() => {
+    const video = tutorialVideoRef.current;
+    if (!video) return;
+    const syncCaptionMode = () => {
+      for (const track of Array.from(video.textTracks)) {
+        track.mode = captionsOn ? "showing" : "disabled";
+      }
+    };
+    syncCaptionMode();
+    video.addEventListener("loadedmetadata", syncCaptionMode);
+    return () => video.removeEventListener("loadedmetadata", syncCaptionMode);
+  }, [captionsOn, scene, tutorialNarrator]);
 
   useEffect(() => {
     for (const track of localVoiceStreamRef.current?.getAudioTracks() ?? []) {
@@ -2579,9 +2677,11 @@ export default function Home() {
   const playTutorial = async () => {
     const video = tutorialVideoRef.current;
     if (!video) return;
+    const audio = tutorialAudioRef.current;
     setTutorialStarted(true);
     setTutorialComplete(false);
     video.currentTime = 0;
+    if (audio) audio.currentTime = 0;
     await video.play().catch(() => {
       setTutorialStarted(false);
     });
@@ -2590,7 +2690,9 @@ export default function Home() {
   const replayTutorial = async () => {
     const video = tutorialVideoRef.current;
     if (!video) return;
+    const audio = tutorialAudioRef.current;
     video.currentTime = 0;
+    if (audio) audio.currentTime = 0;
     setTutorialComplete(false);
     setTutorialStarted(true);
     await video.play().catch(() => undefined);
@@ -3211,11 +3313,39 @@ export default function Home() {
                   controls={tutorialStarted}
                   playsInline
                   preload="metadata"
-                  muted={!soundOn}
+                  muted={Boolean(activeTutorialNarrator.audioSource) || !soundOn}
                   poster="./tutorial/veil-of-secrets-tutorial-poster.jpg"
-                  onPlay={() => setTutorialStarted(true)}
-                  onEnded={() => setTutorialComplete(true)}
-                  aria-label="Veil of Secrets narrated gameplay tutorial"
+                  onPlay={() => {
+                    setTutorialStarted(true);
+                    const audio = tutorialAudioRef.current;
+                    if (audio && activeTutorialNarrator.audioSource && soundOn) {
+                      audio.currentTime = tutorialVideoRef.current?.currentTime ?? 0;
+                      void audio.play().catch(() => undefined);
+                    }
+                  }}
+                  onPause={() => tutorialAudioRef.current?.pause()}
+                  onSeeking={() => {
+                    const video = tutorialVideoRef.current;
+                    const audio = tutorialAudioRef.current;
+                    if (video && audio) audio.currentTime = video.currentTime;
+                  }}
+                  onTimeUpdate={() => {
+                    const video = tutorialVideoRef.current;
+                    const audio = tutorialAudioRef.current;
+                    if (video && audio && Math.abs(audio.currentTime - video.currentTime) > 0.28) {
+                      audio.currentTime = video.currentTime;
+                    }
+                  }}
+                  onRateChange={() => {
+                    const video = tutorialVideoRef.current;
+                    const audio = tutorialAudioRef.current;
+                    if (video && audio) audio.playbackRate = video.playbackRate;
+                  }}
+                  onEnded={() => {
+                    tutorialAudioRef.current?.pause();
+                    setTutorialComplete(true);
+                  }}
+                  aria-label={`Veil of Secrets gameplay tutorial narrated by ${activeTutorialNarrator.name}`}
                 >
                   <source
                     src="./tutorial/veil-of-secrets-tutorial.mp4"
@@ -3226,9 +3356,19 @@ export default function Home() {
                     src="./tutorial/veil-of-secrets-tutorial.vtt"
                     srcLang="en"
                     label="English"
+                    default={captionsOn}
                   />
                   Your browser does not support the tutorial video.
                 </video>
+                {activeTutorialNarrator.audioSource && (
+                  <audio
+                    key={activeTutorialNarrator.id}
+                    ref={tutorialAudioRef}
+                    src={activeTutorialNarrator.audioSource}
+                    preload="metadata"
+                    muted={!soundOn}
+                  />
+                )}
 
                 {!tutorialStarted && (
                   <button className="tutorial-play-button" onClick={() => void playTutorial()}>
@@ -3250,13 +3390,51 @@ export default function Home() {
               </div>
 
               <div className="tutorial-player-meta">
-                <span><Captions size={15} /> Captions included</span>
-                <span><Volume2 size={15} /> Narrated walkthrough</span>
+                <span><Captions size={15} /> Captions {captionsOn ? "on" : "off"}</span>
+                <span><Volume2 size={15} /> Narrated by {activeTutorialNarrator.name}</span>
                 {tutorialStarted && (
                   <button onClick={() => void replayTutorial()}>
                     <RotateCcw size={14} /> Replay from start
                   </button>
                 )}
+              </div>
+
+              <div className="tutorial-narrator-casting" aria-labelledby="narrator-casting-title">
+                <div className="tutorial-narrator-heading">
+                  <span>
+                    <Mic size={15} aria-hidden="true" />
+                    <strong id="narrator-casting-title">Choose your narrator</strong>
+                  </span>
+                  <small>Two women · Two men</small>
+                </div>
+                <p>Choose a voice, then play the full synchronized film.</p>
+                <div className="tutorial-narrator-grid">
+                  {tutorialNarrators.map((narrator) => {
+                    const selected = narrator.id === tutorialNarrator;
+                    return (
+                      <button
+                        key={narrator.id}
+                        className={selected ? "selected" : ""}
+                        aria-pressed={selected}
+                        onClick={() => {
+                          playChime(soundOn, selected);
+                          setTutorialNarrator(narrator.id);
+                        }}
+                      >
+                        <span className="narrator-cast">{narrator.cast}</span>
+                        <span className="narrator-name">
+                          <strong>{narrator.name}</strong>
+                          {selected && <Check size={14} aria-label="Selected" />}
+                        </span>
+                        <small>{narrator.register}</small>
+                        <em>{narrator.direction}</em>
+                        <span className="narrator-wave" aria-hidden="true">
+                          <i /> <i /> <i /> <i /> <i />
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
