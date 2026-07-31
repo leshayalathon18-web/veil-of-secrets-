@@ -679,6 +679,7 @@ function readPreference(key: string, fallback: boolean) {
 
 export default function Home() {
   const [scene, setScene] = useState<Scene>("opening");
+  const [openingDeparting, setOpeningDeparting] = useState(false);
   const [ruleIndex, setRuleIndex] = useState(0);
   const [investigated, setInvestigated] = useState<RoomId[]>([]);
   const [activeRoom, setActiveRoom] = useState<RoomId | null>(null);
@@ -759,6 +760,20 @@ export default function Home() {
   const moveTo = (next: Scene) => {
     playChime(soundOn);
     setScene(next);
+  };
+
+  const enterManor = () => {
+    if (openingDeparting) return;
+    playChime(soundOn, true);
+    if (reducedMotion) {
+      setScene("rules");
+      return;
+    }
+    setOpeningDeparting(true);
+    window.setTimeout(() => {
+      setScene("rules");
+      setOpeningDeparting(false);
+    }, 680);
   };
 
   const inspectRoom = (room: Room) => {
@@ -950,38 +965,119 @@ export default function Home() {
       )}
 
       {scene === "opening" && (
-        <section className="opening scene" aria-labelledby="opening-title">
-          <div className="opening-crest" aria-hidden="true">
-            <span className="crest-v">V</span>
-            <span className="crest-line left" />
-            <Eye className="crest-eye" size={31} strokeWidth={1.25} />
-            <span className="crest-line right" />
+        <section
+          className={`opening scene ${openingDeparting ? "opening-departing" : ""}`}
+          aria-labelledby="opening-title"
+        >
+          <div className="opening-cinematic-bg" aria-hidden="true">
+            <span className="opening-moon" />
+            <span className="manor-silhouette">
+              <i className="manor-roof" />
+              <i className="manor-window window-one" />
+              <i className="manor-window window-two" />
+              <i className="manor-window window-three" />
+            </span>
+            <span className="lightning lightning-one" />
+            <span className="lightning lightning-two" />
+            <span className="opening-rain" />
           </div>
-          <p className="eyebrow">An original social deduction mystery</p>
-          <h1 id="opening-title">
-            <span>Veil</span>
-            <em>of</em>
-            <span>Secrets</span>
-          </h1>
-          <p className="opening-copy">
-            Every room remembers. Every witness edits the truth.
-          </p>
-          <div className="ornament" aria-hidden="true">
-            <span />
-            <i />
-            <span />
+
+          <div className="velvet-curtain curtain-left" aria-hidden="true" />
+          <div className="velvet-curtain curtain-right" aria-hidden="true" />
+
+          <div className="opening-embers" aria-hidden="true">
+            {Array.from({ length: 12 }, (_, index) => (
+              <i
+                key={index}
+                style={
+                  {
+                    "--ember-x": `${8 + ((index * 29) % 84)}%`,
+                    "--ember-delay": `${index * -0.73}s`,
+                    "--ember-duration": `${6.5 + index * 0.18}s`,
+                  } as CSSProperties
+                }
+              />
+            ))}
           </div>
-          <button className="primary-button opening-button" onClick={() => moveTo("rules")}>
-            <span>Enter Blackthorn Manor</span>
-            <ArrowRight size={18} aria-hidden="true" />
-          </button>
-          <button className="text-button" onClick={() => moveTo("menu")}>
-            Skip prologue
-          </button>
-          <p className="opening-caption">
-            <Flame size={14} aria-hidden="true" />
-            Headphones recommended
-          </p>
+
+          <div className="opening-lockup">
+            <p className="opening-kicker">
+              <span />
+              An original mystery experience
+              <span />
+            </p>
+
+            <div className="veil-sigil" aria-hidden="true">
+              <span className="sigil-aura" />
+              <span className="sigil-diamond diamond-outer" />
+              <span className="sigil-diamond diamond-inner" />
+              <span className="sigil-crown">
+                <i />
+                <i />
+                <i />
+              </span>
+              <span className="sigil-letter">V</span>
+              <span className="sigil-eye-shell">
+                <Eye size={35} strokeWidth={1.15} />
+                <i />
+              </span>
+              <span className="sigil-keyhole" />
+            </div>
+
+            <h1 id="opening-title" aria-label="Veil of Secrets">
+              <span className="title-veil">Veil</span>
+              <em>of</em>
+              <span className="title-secrets">Secrets</span>
+            </h1>
+
+            <p className="opening-copy">
+              Every room remembers. Every witness edits the truth.
+            </p>
+
+            <div className="opening-promise">
+              <Sparkles size={14} aria-hidden="true" />
+              <span>New cast</span>
+              <i />
+              <span>New trail</span>
+              <i />
+              <span>Every case</span>
+            </div>
+
+            <div className="ornament" aria-hidden="true">
+              <span />
+              <i />
+              <span />
+            </div>
+
+            <div className="opening-actions">
+              <button
+                className="primary-button opening-button"
+                onClick={enterManor}
+                disabled={openingDeparting}
+              >
+                <span>Enter Blackthorn Manor</span>
+                <ArrowRight size={18} aria-hidden="true" />
+              </button>
+              <button
+                className="text-button"
+                onClick={() => moveTo("menu")}
+                disabled={openingDeparting}
+              >
+                Skip prologue
+              </button>
+            </div>
+          </div>
+
+          <div className="opening-caption">
+            <span>
+              <Headphones size={14} aria-hidden="true" />
+              Headphones recommended
+            </span>
+            <span>
+              <Flame size={14} aria-hidden="true" />
+              A Blackthorn Manor mystery
+            </span>
+          </div>
         </section>
       )}
 

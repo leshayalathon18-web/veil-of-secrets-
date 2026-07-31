@@ -35,7 +35,9 @@ test("server-renders the Veil of Secrets opening", async () => {
   assert.match(html, /<title>Veil of Secrets \| Blackthorn Manor<\/title>/i);
   assert.match(html, /Enter Blackthorn Manor/);
   assert.match(html, /Every room remembers/);
-  assert.match(html, /An original social deduction mystery/);
+  assert.match(html, /An original mystery experience/);
+  assert.match(html, /New cast/);
+  assert.match(html, /Every case/);
   assert.doesNotMatch(html, /codex-preview|Starter Project|loading skeleton/i);
 });
 
@@ -71,6 +73,11 @@ test("keeps the full tabletop case and accessibility controls in source", async 
   }
 
   assert.match(page, /const rollDice/);
+  assert.match(page, /const enterManor/);
+  assert.match(page, /openingDeparting/);
+  assert.match(page, /veil-sigil/);
+  assert.match(page, /velvet-curtain/);
+  assert.match(page, /opening-embers/);
   assert.match(page, /function playDiceRoll/);
   assert.match(page, /dice-roll-wood\.mp3/);
   assert.match(page, /new Audio\(/);
@@ -104,6 +111,11 @@ test("keeps the full tabletop case and accessibility controls in source", async 
   assert.match(page, /captionsOn/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
   assert.match(css, /\.manor-board/);
+  assert.match(css, /\.opening-cinematic-bg/);
+  assert.match(css, /\.veil-sigil/);
+  assert.match(css, /\.velvet-curtain/);
+  assert.match(css, /@keyframes curtain-open-left/);
+  assert.match(css, /@keyframes title-metal-shimmer/);
   assert.match(css, /\.turn-phase-rail/);
   assert.match(css, /\.floor-space/);
   assert.match(css, /\.floor-room/);

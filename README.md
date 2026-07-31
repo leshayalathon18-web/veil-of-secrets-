@@ -9,7 +9,8 @@ without eliminating anyone from the match.
 
 The first-launch vertical slice includes:
 
-- Cinematic animated opening and original visual identity
+- Cinematic velvet-curtain opening with an original gold-and-crimson eye sigil,
+  storm-lit manor silhouette, embers, metallic title shimmer, and entrance transition
 - Three-step visual rules sequence
 - Walkable nine-room manor floor plan with individual marble hallway spaces
 - Enterable, furnished rooms with working doorways and room-only searches
