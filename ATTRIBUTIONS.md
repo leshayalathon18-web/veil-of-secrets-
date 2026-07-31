@@ -24,6 +24,11 @@ The gold V, crimson veil, and keyhole crest in
 Secrets with OpenAI image generation. It contains no third-party artwork or
 logos.
 
+The 90-second tutorial film in `public/tutorial/` is an original programmatic
+motion-graphics production made from the game's original character and brand
+art. Narration was synthesized locally with a Windows system voice; the film
+contains no third-party footage.
+
 ## Audio
 
 Interface chimes are synthesized at runtime with the Web Audio API.

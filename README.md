@@ -12,7 +12,9 @@ The first-launch vertical slice includes:
 - Cinematic velvet-curtain opening with an original gold V, crimson veil, and
   keyhole crest, plus a storm-lit manor silhouette, embers, metallic title
   shimmer, and entrance transition
-- Three-step visual rules sequence
+- Narrated 90-second tutorial film with seven detailed chapters, burned-in
+  captions, original motion graphics, and the illustrated cast moving through
+  the manor
 - Walkable fifteen-location manor floor plan with individual marble hallway spaces
 - Enterable, furnished rooms with working doorways and room-only searches
 - Physical six-sided die with a licensed wooden-table roll recording

@@ -4,8 +4,8 @@ import {
   Accessibility,
   ArrowRight,
   BookOpen,
+  Captions,
   Check,
-  ChevronLeft,
   CircleDot,
   Clock3,
   Dices,
@@ -22,6 +22,8 @@ import {
   MapPin,
   Menu,
   Mic,
+  Play,
+  RotateCcw,
   Search,
   Settings,
   ShieldCheck,
@@ -1533,24 +1535,48 @@ const manorEvents = [
   },
 ];
 
-const rules = [
+const tutorialChapters = [
   {
     number: "I",
-    title: "Roll and roam",
-    body: "Roll the brass die and move your detective through connected doorways on the Blackthorn board.",
-    icon: Dices,
+    title: "Your objective",
+    body: "Understand the changing victim, culprit, method, location, motive, and evidence trail.",
+    icon: KeyRound,
   },
   {
     number: "II",
-    title: "Search and share",
-    body: "Spend your turn searching a room. The clue enters your notebook—what you reveal at the table is your choice.",
-    icon: BookOpen,
+    title: "Roll for movement",
+    body: "Cast the brass die and spend movement points along connected marble corridors.",
+    icon: Dices,
   },
   {
     number: "III",
-    title: "Seal your theory",
-    body: "Before midnight, name the culprit, method, location, and motive. Complete deductions earn the strongest score.",
-    icon: Feather,
+    title: "Walk the manor",
+    body: "Watch every illustrated detective travel one space at a time and enter through working doors.",
+    icon: Footprints,
+  },
+  {
+    number: "IV",
+    title: "Search for evidence",
+    body: "Search a room once to reveal a timeline, motive, method, or location clue.",
+    icon: Search,
+  },
+  {
+    number: "V",
+    title: "Read the notebook",
+    body: "Connect evidence, witnesses, suspects, motives, and negative room evidence.",
+    icon: BookOpen,
+  },
+  {
+    number: "VI",
+    title: "Discuss and deceive",
+    body: "Share evidence with a friend, hold back a detail, or bluff about your suspicion.",
+    icon: UsersRound,
+  },
+  {
+    number: "VII",
+    title: "Seal your accusation",
+    body: "A complete accusation names the suspect, method, location, and motive.",
+    icon: ShieldCheck,
   },
 ];
 
@@ -1569,7 +1595,7 @@ const menuItems = [
   },
   {
     label: "How deduction works",
-    detail: "Replay the visual rules",
+    detail: "Watch the narrated 90-second tutorial",
     icon: BookOpen,
     action: "rules",
   },
@@ -1701,7 +1727,8 @@ function quietRoomEvidence(room: Room, caseFile: CaseFile, caseIndex: number): E
 export default function Home() {
   const [scene, setScene] = useState<Scene>("opening");
   const [openingDeparting, setOpeningDeparting] = useState(false);
-  const [ruleIndex, setRuleIndex] = useState(0);
+  const [tutorialStarted, setTutorialStarted] = useState(false);
+  const [tutorialComplete, setTutorialComplete] = useState(false);
   const [investigated, setInvestigated] = useState<RoomId[]>([]);
   const [activeRoom, setActiveRoom] = useState<RoomId | null>(null);
   const [notebookOpen, setNotebookOpen] = useState(false);
@@ -1762,6 +1789,7 @@ export default function Home() {
   const roomPasswordHashRef = useRef("");
   const guestTargetRef = useRef<{ hostId: string; passwordHash: string } | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
+  const tutorialVideoRef = useRef<HTMLVideoElement | null>(null);
   const joinFriendGameRef = useRef<
     (codeOverride?: string, passwordOverride?: string) => Promise<void>
   >(async () => {});
@@ -2224,8 +2252,32 @@ export default function Home() {
     window.setTimeout(() => setCopyConfirmed(null), 1800);
   };
 
+  const playTutorial = async () => {
+    const video = tutorialVideoRef.current;
+    if (!video) return;
+    setTutorialStarted(true);
+    setTutorialComplete(false);
+    video.currentTime = 0;
+    await video.play().catch(() => {
+      setTutorialStarted(false);
+    });
+  };
+
+  const replayTutorial = async () => {
+    const video = tutorialVideoRef.current;
+    if (!video) return;
+    video.currentTime = 0;
+    setTutorialComplete(false);
+    setTutorialStarted(true);
+    await video.play().catch(() => undefined);
+  };
+
   const moveTo = (next: Scene) => {
     playChime(soundOn);
+    if (next === "rules") {
+      setTutorialStarted(false);
+      setTutorialComplete(false);
+    }
     setScene(next);
   };
 
@@ -2613,71 +2665,106 @@ export default function Home() {
       )}
 
       {scene === "rules" && (
-        <section className="rules scene" aria-labelledby="rules-title">
-          <div className="scene-heading">
-            <p className="eyebrow">The investigator&apos;s compact</p>
-            <h2 id="rules-title">Truth has a pattern.</h2>
-            <p>Learn it in three moves. You can return here from the menu at any time.</p>
+        <section className="tutorial-scene scene" aria-labelledby="tutorial-title">
+          <div className="tutorial-heading">
+            <div>
+              <p className="eyebrow">The investigator&apos;s briefing</p>
+              <h2 id="tutorial-title">Learn Blackthorn in ninety seconds.</h2>
+              <p>
+                A narrated walkthrough of movement, evidence, deduction, friend play,
+                and the final accusation—shown with the actual detective cast.
+              </p>
+            </div>
+            <span className="tutorial-runtime">
+              <Play size={14} fill="currentColor" />
+              01:30 · Seven chapters
+            </span>
           </div>
 
-          <div className="rules-layout">
-            <div className="rule-stage">
-              <div className="rule-number">{rules[ruleIndex].number}</div>
-              <div className="rule-icon-shell">
-                {(() => {
-                  const Icon = rules[ruleIndex].icon;
-                  return <Icon size={42} strokeWidth={1.35} aria-hidden="true" />;
-                })()}
-              </div>
-              <div className="rule-copy">
-                <span>Principle {ruleIndex + 1} of 3</span>
-                <h3>{rules[ruleIndex].title}</h3>
-                <p>{rules[ruleIndex].body}</p>
-              </div>
-            </div>
-
-            <div className="rule-navigation" aria-label="Rules progress">
-              {rules.map((rule, index) => (
-                <button
-                  key={rule.title}
-                  className={index === ruleIndex ? "active" : ""}
-                  onClick={() => {
-                    setRuleIndex(index);
-                    playChime(soundOn);
-                  }}
-                  aria-label={`Show rule ${index + 1}: ${rule.title}`}
-                  aria-current={index === ruleIndex ? "step" : undefined}
+          <div className="tutorial-layout">
+            <div className="tutorial-player-shell">
+              <div className="tutorial-film-frame">
+                <video
+                  ref={tutorialVideoRef}
+                  controls={tutorialStarted}
+                  playsInline
+                  preload="metadata"
+                  muted={!soundOn}
+                  poster="./tutorial/veil-of-secrets-tutorial-poster.jpg"
+                  onPlay={() => setTutorialStarted(true)}
+                  onEnded={() => setTutorialComplete(true)}
+                  aria-label="Veil of Secrets narrated gameplay tutorial"
                 >
-                  <span>{String(index + 1).padStart(2, "0")}</span>
-                  <strong>{rule.title}</strong>
-                </button>
-              ))}
+                  <source
+                    src="./tutorial/veil-of-secrets-tutorial.mp4"
+                    type="video/mp4"
+                  />
+                  <track
+                    kind="captions"
+                    src="./tutorial/veil-of-secrets-tutorial.vtt"
+                    srcLang="en"
+                    label="English"
+                  />
+                  Your browser does not support the tutorial video.
+                </video>
+
+                {!tutorialStarted && (
+                  <button className="tutorial-play-button" onClick={() => void playTutorial()}>
+                    <span><Play size={28} fill="currentColor" /></span>
+                    <strong>Play tutorial</strong>
+                    <small>Narration, captions, and moving characters</small>
+                  </button>
+                )}
+
+                {tutorialComplete && (
+                  <div className="tutorial-complete-card" role="status">
+                    <Check size={22} />
+                    <span>
+                      <strong>Briefing complete</strong>
+                      <small>You are ready to investigate.</small>
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="tutorial-player-meta">
+                <span><Captions size={15} /> Captions included</span>
+                <span><Volume2 size={15} /> Narrated walkthrough</span>
+                {tutorialStarted && (
+                  <button onClick={() => void replayTutorial()}>
+                    <RotateCcw size={14} /> Replay from start
+                  </button>
+                )}
+              </div>
             </div>
+
+            <aside className="tutorial-chapter-list" aria-label="Tutorial chapters">
+              <div className="panel-label">
+                <span>Inside the film</span>
+                <span>01:30</span>
+              </div>
+              <ol>
+                {tutorialChapters.map((chapter, index) => (
+                  <li key={chapter.title}>
+                    <span>{String(index + 1).padStart(2, "0")}</span>
+                    <div>
+                      <strong>{chapter.title}</strong>
+                      <small>{index === 0 ? "The changing mystery" : chapter.body}</small>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </aside>
           </div>
 
-          <div className="rules-footer">
-            <button
-              className="secondary-button"
-              onClick={() => setRuleIndex((current) => Math.max(0, current - 1))}
-              disabled={ruleIndex === 0}
-            >
-              <ChevronLeft size={17} /> Back
+          <div className="tutorial-footer">
+            <button className="secondary-button" onClick={() => moveTo("menu")}>
+              Skip for now
             </button>
-            {ruleIndex < rules.length - 1 ? (
-              <button
-                className="primary-button"
-                onClick={() => {
-                  setRuleIndex((current) => current + 1);
-                  playChime(soundOn);
-                }}
-              >
-                Next principle <ArrowRight size={17} />
-              </button>
-            ) : (
-              <button className="primary-button" onClick={() => moveTo("case")}>
-                Begin practice case <ArrowRight size={17} />
-              </button>
-            )}
+            <button className="primary-button" onClick={() => moveTo("case")}>
+              {tutorialComplete ? "Begin practice case" : "Skip to practice case"}
+              <ArrowRight size={17} />
+            </button>
           </div>
         </section>
       )}

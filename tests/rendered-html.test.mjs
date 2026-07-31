@@ -95,6 +95,12 @@ test("keeps the full tabletop case and accessibility controls in source", async 
   assert.match(page, /portraitIndex/);
   assert.match(page, /const enterManor/);
   assert.match(page, /openingDeparting/);
+  assert.match(page, /tutorialVideoRef/);
+  assert.match(page, /Play tutorial/);
+  assert.match(page, /veil-of-secrets-tutorial\.mp4/);
+  assert.match(page, /veil-of-secrets-tutorial\.vtt/);
+  assert.match(page, /actual detective cast/);
+  assert.doesNotMatch(page, /ruleIndex|setRuleIndex|Next principle/);
   assert.match(page, /veil-sigil/);
   assert.match(page, /sigil-crest-art/);
   assert.match(page, /veil-sigil-v2\.png/);
@@ -149,6 +155,8 @@ test("keeps the full tabletop case and accessibility controls in source", async 
   assert.match(css, /\.opening-cinematic-bg/);
   assert.match(css, /\.veil-sigil/);
   assert.match(css, /@keyframes crest-glint/);
+  assert.match(css, /\.tutorial-film-frame/);
+  assert.match(css, /\.tutorial-play-button/);
   assert.doesNotMatch(css, /\.sigil-eye-shell|\.crest-eye/);
   assert.match(css, /\.velvet-curtain/);
   assert.match(css, /@keyframes curtain-open-left/);
@@ -169,4 +177,7 @@ test("keeps the full tabletop case and accessibility controls in source", async 
   await access(new URL("../public/audio/dice-roll-wood.mp3", import.meta.url));
   await access(new URL("../public/characters/blackthorn-cast-sheet.png", import.meta.url));
   await access(new URL("../public/branding/veil-sigil-v2.png", import.meta.url));
+  await access(new URL("../public/tutorial/veil-of-secrets-tutorial.mp4", import.meta.url));
+  await access(new URL("../public/tutorial/veil-of-secrets-tutorial-poster.jpg", import.meta.url));
+  await access(new URL("../public/tutorial/veil-of-secrets-tutorial.vtt", import.meta.url));
 });
