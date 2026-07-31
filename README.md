@@ -20,8 +20,8 @@ The first-launch vertical slice includes:
 - Private two-player WebRTC invite links with bots filling the remaining seats
 - Synchronized dice, clue, turn, pawn, and movement-ledger state between both players
 - Visible step-by-step bot movement instead of instant pawn teleporting
-- Three coherent evidence editions with different room clues, notes, and observations
-- Four sculpted detective pawns, a four-step turn rail, movement points, and turn order
+- Eleven distinct mystery cases with different victims, culprits, methods, motives, evidence trails, and verdicts
+- Four illustrated character miniatures that visibly travel space-by-space, plus a four-step turn rail, movement points, and turn order
 - Rival movement, round pressure, and flipping manor-event cards
 - Room searches with interactive evidence
 - Automatic detective notebook

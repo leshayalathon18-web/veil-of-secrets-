@@ -98,7 +98,13 @@ test("keeps the full tabletop case and accessibility controls in source", async 
   assert.match(page, /corridorCoordinates/);
   assert.match(page, /boardGraph/);
   assert.match(page, /evidenceVariants/);
-  assert.match(page, /caseVariations/);
+  assert.match(page, /caseFiles/);
+  assert.match(page, /quietRoomEvidence/);
+  assert.match(page, /The Silent Waltz/);
+  assert.match(page, /The Bell at Dawn/);
+  assert.match(page, /The Crimson Masquerade/);
+  assert.match(page, /caseFiles\.length/);
+  assert.match(page, /currentCase\.reveal/);
   assert.match(page, /detectiveRoster/);
   assert.match(page, /drawDetectives/);
   assert.match(page, /Mara Vale/);
@@ -111,12 +117,12 @@ test("keeps the full tabletop case and accessibility controls in source", async 
   assert.match(page, /floor-space/);
   assert.match(page, /floor-room/);
   assert.match(page, /room-furniture/);
-  assert.match(page, /pawn-head/);
+  assert.match(page, /pawn-character/);
   assert.match(page, /Movement tray/);
   assert.match(page, /manorEvents/);
   assert.match(page, /2 players \+ 2 bots/);
   assert.match(page, /Solo table · You \+ 3 bots/);
-  assert.match(page, /selectedSuspect === "celia"/);
+  assert.match(page, /currentCase\.solution\.suspect/);
   assert.match(page, /Silver letter opener/);
   assert.match(page, /To conceal the stolen estate funds/);
   assert.match(page, /largeText/);
@@ -139,7 +145,7 @@ test("keeps the full tabletop case and accessibility controls in source", async 
   assert.match(css, /\.floor-room/);
   assert.match(css, /\.room-door/);
   assert.match(css, /\.room-furniture/);
-  assert.match(css, /\.pawn-head/);
+  assert.match(css, /\.pawn-character/);
   assert.match(css, /\.dice-tray/);
   assert.match(css, /\.die-face i\.pip/);
   assert.match(css, /\.brass-die/);

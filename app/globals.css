@@ -5087,7 +5087,7 @@ input:focus-visible {
 
 .character-portrait,
 .detective-card-portrait,
-.pawn-head {
+.pawn-character {
   background-image: url("/characters/blackthorn-cast-sheet.png");
   background-repeat: no-repeat;
   background-size: 500% 200%;
@@ -5198,12 +5198,6 @@ input:focus-visible {
   color: var(--crimson-bright);
 }
 
-.pawn-head {
-  overflow: hidden;
-  border: 1px solid rgba(255, 242, 204, 0.72);
-  background-color: #171214;
-}
-
 .pawn-cluster i {
   transition:
     transform 240ms cubic-bezier(0.2, 0.86, 0.24, 1),
@@ -5297,5 +5291,124 @@ input:focus-visible {
 @media (max-width: 390px) {
   .character-card {
     grid-template-columns: 92px 1fr;
+  }
+}
+
+/* Illustrated character miniatures replace abstract pawn bodies. */
+.pawn-cluster i {
+  width: 30px;
+  height: 46px;
+  margin-left: -7px;
+}
+
+.pawn-character {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 25px;
+  height: 39px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--player-color) 58%, #f5df9a);
+  border-radius: 46% 46% 12% 12%;
+  background-color: #120d0f;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 244, 205, 0.18),
+    0 0 0 2px rgba(4, 3, 4, 0.75),
+    0 4px 8px rgba(0, 0, 0, 0.72);
+  transform: translateX(-50%);
+}
+
+.pawn-character::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background:
+    linear-gradient(110deg, transparent 22%, rgba(255, 245, 214, 0.2) 46%, transparent 67%);
+  transform: translateX(-120%);
+  animation: miniature-glint 3.8s ease-in-out infinite;
+}
+
+.pawn-cluster i::after {
+  height: 9px;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 50% 25%, color-mix(in srgb, var(--player-color) 88%, white), var(--player-color) 45%, #120b0d 100%);
+  box-shadow:
+    inset 0 2px rgba(255, 255, 255, 0.24),
+    0 3px 4px rgba(0, 0, 0, 0.62);
+}
+
+.pawn-cluster i b {
+  color: #0a0708;
+  font-size: 0.4rem;
+  line-height: 9px;
+  text-shadow: 0 1px rgba(255, 255, 255, 0.24);
+}
+
+.floor-space .pawn-cluster {
+  transform: translate(50%, 58%) scale(0.82);
+}
+
+.floor-room .pawn-cluster {
+  transform: scale(1.02);
+}
+
+@keyframes miniature-glint {
+  0%, 72% { transform: translateX(-130%); }
+  100% { transform: translateX(130%); }
+}
+
+@media (max-width: 760px) {
+  .pawn-cluster i {
+    width: 25px;
+    height: 39px;
+    margin-left: -7px;
+  }
+
+  .pawn-character {
+    width: 21px;
+    height: 33px;
+  }
+}
+
+@media (max-width: 520px) {
+  .floor-space .pawn-cluster {
+    transform: translate(50%, 58%) scale(0.68);
+  }
+
+  .floor-room .pawn-cluster {
+    transform: scale(0.74);
+  }
+}
+
+.case-victim {
+  width: max-content;
+  display: inline-flex;
+  align-items: center;
+  margin-top: 13px;
+  padding: 6px 10px;
+  color: #cbbfb4;
+  border: 1px solid rgba(203, 167, 90, 0.2);
+  background: rgba(8, 7, 8, 0.52);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.new-case-button {
+  min-height: 48px;
+  padding-inline: 16px;
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .new-case-button {
+    min-height: 42px;
+    padding-inline: 12px;
+  }
+
+  .new-case-button span {
+    font-size: 0.62rem;
   }
 }

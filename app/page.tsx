@@ -664,20 +664,685 @@ const evidenceVariants: Record<RoomId, EvidenceVariant[]> = {
   ],
 };
 
-const caseVariations = [
+type Suspect = {
+  id: string;
+  name: string;
+  role: string;
+  detail: string;
+  monogram: string;
+};
+
+type CaseFile = {
+  title: string;
+  subtitle: string;
+  victim: string;
+  suspects: Suspect[];
+  methods: string[];
+  locations: string[];
+  motives: string[];
+  solution: {
+    suspect: string;
+    method: string;
+    location: string;
+    motive: string;
+  };
+  reveal: string;
+  timeline: Array<{ time: string; text: string }>;
+  evidence: Partial<Record<RoomId, EvidenceVariant>>;
+};
+
+const suspectPool = {
+  celia: {
+    id: "celia", name: "Celia Harrow", role: "Estate solicitor", monogram: "CH",
+    detail: "Controlled the manor accounts and wore a white camellia.",
+  },
+  elias: {
+    id: "elias", name: "Elias Voss", role: "Head groundskeeper", monogram: "EV",
+    detail: "Knew every garden lock and cultivated Blackthorn's rare plants.",
+  },
+  mirelle: {
+    id: "mirelle", name: "Mirelle Ash", role: "Concert pianist", monogram: "MA",
+    detail: "Guarded the authorship of her celebrated midnight waltz.",
+  },
+  lucien: {
+    id: "lucien", name: "Dr. Lucien Grey", role: "Family physician", monogram: "LG",
+    detail: "Kept private medical reports for every member of the household.",
+  },
+  beatrice: {
+    id: "beatrice", name: "Lady Beatrice Thorn", role: "Disputed heiress", monogram: "BT",
+    detail: "Expected to inherit Blackthorn until a new codicil appeared.",
+  },
+  sebastian: {
+    id: "sebastian", name: "Sebastian Crow", role: "Senior valet", monogram: "SC",
+    detail: "Carried keys to the guest rooms and knew every servant passage.",
+  },
+  agatha: {
+    id: "agatha", name: "Agatha Morel", role: "Visiting botanist", monogram: "AM",
+    detail: "Claimed the conservatory's rare camellia hybrid as her own discovery.",
+  },
+  conrad: {
+    id: "conrad", name: "Conrad Vale", role: "Private financier", monogram: "CV",
+    detail: "Sold bonds backed by Blackthorn's celebrated wine collection.",
+  },
+  isolde: {
+    id: "isolde", name: "Isolde March", role: "Salon medium", monogram: "IM",
+    detail: "Built a fashionable reputation on private séances at the manor.",
+  },
+  silas: {
+    id: "silas", name: "Reverend Silas Flint", role: "Estate chaplain", monogram: "SF",
+    detail: "Managed the Blackthorn charitable trust without outside review.",
+  },
+} satisfies Record<string, Suspect>;
+
+const caseFiles: CaseFile[] = [
   {
     title: "The Ashes in the Library",
     subtitle: "A burned ledger, a silent blade, and a lie told before midnight.",
+    victim: "Edmund Blackthorn",
+    suspects: [suspectPool.celia, suspectPool.elias, suspectPool.mirelle],
+    methods: ["Silver letter opener", "Poisoned cordial", "Falling marble bust"],
+    locations: ["The Library", "The Conservatory", "The Study"],
+    motives: [
+      "To conceal the stolen estate funds",
+      "To inherit Blackthorn Manor",
+      "To stop a private engagement",
+    ],
+    solution: {
+      suspect: "celia",
+      method: "Silver letter opener",
+      location: "The Library",
+      motive: "To conceal the stolen estate funds",
+    },
+    reveal:
+      "Celia Harrow killed Edmund Blackthorn in the Library with the silver letter opener, then burned the account page that exposed her embezzlement.",
+    timeline: [
+      { time: "10:12", text: "Celia confronts Edmund over the missing funds." },
+      { time: "10:17", text: "Edmund's watch shatters beside the library desk." },
+      { time: "10:21", text: "Celia cleans the opener and burns the ledger page." },
+    ],
+    evidence: {},
   },
   {
-    title: "The Solicitor's Midnight",
-    subtitle: "An erased appointment exposes the path between the accounts and the library.",
+    title: "The Silent Waltz",
+    subtitle: "A final chord, a falling light, and a melody stolen before its debut.",
+    victim: "Viola Sterling",
+    suspects: [suspectPool.mirelle, suspectPool.sebastian, suspectPool.beatrice],
+    methods: ["Loosened chandelier counterweight", "Poisoned champagne", "Piano-wire snare"],
+    locations: ["The Ballroom", "The Attic", "The Grand Hall"],
+    motives: [
+      "To conceal the waltz's true composer",
+      "To recover a family jewel",
+      "To prevent a broken engagement",
+    ],
+    solution: {
+      suspect: "mirelle",
+      method: "Loosened chandelier counterweight",
+      location: "The Ballroom",
+      motive: "To conceal the waltz's true composer",
+    },
+    reveal:
+      "Mirelle Ash loosened the Ballroom chandelier counterweight before the concert, silencing Viola before she could prove the famous waltz was hers.",
+    timeline: [
+      { time: "9:48", text: "Viola places her original score in the Attic trunk." },
+      { time: "10:06", text: "Mirelle cuts the chandelier retaining cord." },
+      { time: "10:19", text: "The final chord releases the altered counterweight." },
+    ],
+    evidence: {
+      ballroom: {
+        kicker: "A counterweight cut twice",
+        description: "The chandelier rope shows a clean musician's blade cut hidden beneath a decorative fray.",
+        clue: "Altered chandelier cord",
+        note: "The cut was prepared before the concert and released by the final stage cue.",
+      },
+      attic: {
+        kicker: "The first waltz in another hand",
+        description: "Viola's dated manuscript matches Mirelle's celebrated melody note for note.",
+        clue: "Original waltz manuscript",
+        note: "The score proves Viola—not Mirelle—composed the work that made Mirelle famous.",
+      },
+      guestSuite: {
+        kicker: "A rehearsal heard through brass",
+        description: "A guest heard Mirelle threaten Viola through the speaking tube before the doors opened.",
+        clue: "Overheard rehearsal threat",
+        note: "Mirelle knew Viola planned to reveal the manuscript after the final waltz.",
+      },
+      study: {
+        kicker: "Royalties paid to one name",
+        description: "A publishing contract routes every payment to Mirelle despite Viola's corrections in the margin.",
+        clue: "Disputed royalty contract",
+        note: "Public exposure would have ended Mirelle's career and fortune.",
+      },
+      hall: {
+        kicker: "Rosin where no violin played",
+        description: "Fresh bow rosin marks the service stair leading from Mirelle's dressing room.",
+        clue: "Rosin stair trace",
+        note: "The trace maps Mirelle's unseen route to the chandelier winch.",
+      },
+    },
   },
   {
-    title: "The Camellia Account",
-    subtitle: "White petals and silver rouge mark a carefully staged return through Blackthorn.",
+    title: "The Moon Garden Alibi",
+    subtitle: "Rare flowers, a locked gate, and an antidote hidden beneath the soil.",
+    victim: "Dr. Alistair Fenn",
+    suspects: [suspectPool.elias, suspectPool.agatha, suspectPool.lucien],
+    methods: ["Foxglove tincture", "Contaminated garden needle", "Crushed glass powder"],
+    locations: ["The Conservatory", "The Moon Garden", "The Kitchen"],
+    motives: [
+      "To protect a rare-plant smuggling route",
+      "To claim a botanical discovery",
+      "To suppress a medical scandal",
+    ],
+    solution: {
+      suspect: "elias",
+      method: "Foxglove tincture",
+      location: "The Conservatory",
+      motive: "To protect a rare-plant smuggling route",
+    },
+    reveal:
+      "Elias Voss slipped concentrated foxglove into Dr. Fenn's conservatory tonic to stop him exposing the rare plants moving through Blackthorn's cellar.",
+    timeline: [
+      { time: "9:55", text: "Fenn photographs the hidden export labels." },
+      { time: "10:11", text: "Elias replaces the harmless tonic bottle." },
+      { time: "10:26", text: "Fenn collapses beside the locked conservatory door." },
+    ],
+    evidence: {
+      conservatory: {
+        kicker: "Foxglove missing from one bed",
+        description: "Three fresh stems are cut from the locked medicinal plot and their sap remains wet.",
+        clue: "Fresh foxglove cuts",
+        note: "Only Elias carried the groundskeeper's key to the medicinal bed.",
+      },
+      garden: {
+        kicker: "A gate that never opened",
+        description: "Unbroken rust bridges the outer latch despite Elias's claim that a courier escaped through it.",
+        clue: "Sealed garden gate",
+        note: "The courier story was an alibi; the poisoner remained inside Blackthorn.",
+      },
+      cellar: {
+        kicker: "Orchids beneath false labels",
+        description: "Export crates marked table linen contain protected orchids packed by the estate garden staff.",
+        clue: "Smuggled orchid crates",
+        note: "Dr. Fenn had discovered the operation Elias was protecting.",
+      },
+      kitchen: {
+        kicker: "A tincture bottle rinsed once",
+        description: "The washbasin carries a bitter green ring matching concentrated foxglove.",
+        clue: "Rinsed tincture bottle",
+        note: "The bottle was cleaned moments after Fenn's evening tonic was prepared.",
+      },
+      guestSuite: {
+        kicker: "A manifest copied by moonlight",
+        description: "Fenn's pocket notebook lists the cellar crates and Elias's private shipping mark.",
+        clue: "Secret export manifest",
+        note: "The manifest supplied Elias with a direct motive to silence him.",
+      },
+    },
   },
-] as const;
+  {
+    title: "The Testament Behind the Wall",
+    subtitle: "A rewritten inheritance, a sleeping draught, and a secret passage left open.",
+    victim: "Marcus Thorne",
+    suspects: [suspectPool.beatrice, suspectPool.celia, suspectPool.sebastian],
+    methods: ["Laudanum overdose", "Smothered fireplace draft", "Tampered bed warmer"],
+    locations: ["The Master Bedroom", "The Secret Passage", "The Guest Suite"],
+    motives: [
+      "To restore a lost inheritance",
+      "To conceal an illicit marriage",
+      "To recover a compromising letter",
+    ],
+    solution: {
+      suspect: "beatrice",
+      method: "Laudanum overdose",
+      location: "The Master Bedroom",
+      motive: "To restore a lost inheritance",
+    },
+    reveal:
+      "Lady Beatrice Thorn doubled Marcus's sleeping draught in the Master Bedroom, then hid the new codicil inside the Secret Passage.",
+    timeline: [
+      { time: "10:02", text: "Marcus signs a codicil removing Beatrice from the will." },
+      { time: "10:14", text: "Beatrice enters with the nightly medicine tray." },
+      { time: "10:23", text: "She hides the codicil behind the passage panel." },
+    ],
+    evidence: {
+      masterBedroom: {
+        kicker: "Two measures in one glass",
+        description: "The medicine glass holds twice the prescribed laudanum and a trace of Beatrice's violet powder.",
+        clue: "Doubled sleeping draught",
+        note: "Beatrice delivered the tray and handled the glass after the valet left.",
+      },
+      secretPassage: {
+        kicker: "A will folded behind velvet",
+        description: "The new codicil is wedged behind the panel in a glove carrying violet face powder.",
+        clue: "Hidden inheritance codicil",
+        note: "The document removed Beatrice from the estate hours before Marcus died.",
+      },
+      library: {
+        kicker: "An older will left open",
+        description: "The former testament names Beatrice sole heir and bears her fresh fingerprints.",
+        clue: "Superseded testament",
+        note: "Beatrice knew exactly what the new codicil would cost her.",
+      },
+      dining: {
+        kicker: "No drug in the dinner wine",
+        description: "Every decanter tests clean, disproving the story that Marcus dosed himself at dinner.",
+        clue: "Clean dinner decanters",
+        note: "The fatal dose came later, with the private bedroom medicine.",
+      },
+      study: {
+        kicker: "A signature witnessed at ten",
+        description: "The signing register records Marcus alert and steady minutes before his bedtime draught.",
+        clue: "Codicil witness register",
+        note: "Marcus was not confused or accidentally overmedicated when the will changed.",
+      },
+    },
+  },
+  {
+    title: "The Last Light",
+    subtitle: "A telescope brake, a false diagnosis, and one final exposure in the storm.",
+    victim: "Rose Harcourt",
+    suspects: [suspectPool.lucien, suspectPool.celia, suspectPool.conrad],
+    methods: ["Sabotaged telescope brake", "Cut balcony rail", "Drugged photographic plate"],
+    locations: ["The Observatory", "The Attic", "The Study"],
+    motives: [
+      "To conceal a falsified medical report",
+      "To destroy a damaging photograph",
+      "To protect a secret investment",
+    ],
+    solution: {
+      suspect: "lucien",
+      method: "Sabotaged telescope brake",
+      location: "The Observatory",
+      motive: "To conceal a falsified medical report",
+    },
+    reveal:
+      "Dr. Lucien Grey filed through the Observatory brake so the heavy telescope would swing when Rose opened the dome, destroying the witness who held his falsified report.",
+    timeline: [
+      { time: "9:42", text: "Rose copies Lucien's altered medical report." },
+      { time: "10:08", text: "Lucien oils and files the telescope brake." },
+      { time: "10:31", text: "Rose opens the dome and the assembly swings free." },
+    ],
+    evidence: {
+      observatory: {
+        kicker: "A brake filed smooth",
+        description: "The brass brake tooth has fresh parallel file marks beneath a smear of medical oil.",
+        clue: "Sabotaged telescope brake",
+        note: "The failure was prepared deliberately and timed to the opening of the dome.",
+      },
+      basement: {
+        kicker: "Instrument oil beside the boiler",
+        description: "Lucien's monogrammed medical oil bottle is hidden behind the basement tool rack.",
+        clue: "Monogrammed instrument oil",
+        note: "The same oil coats the sabotaged observatory brake.",
+      },
+      study: {
+        kicker: "A diagnosis written twice",
+        description: "Rose's copy records a healthy patient while Lucien's filed report invents a fatal condition.",
+        clue: "Conflicting medical reports",
+        note: "Rose planned to expose the fraud at breakfast.",
+      },
+      attic: {
+        kicker: "A physician's file in the tool roll",
+        description: "A fine metal file carries brass dust matching the telescope mechanism.",
+        clue: "Brass-dusted hand file",
+        note: "The file came from Lucien's travelling surgical case.",
+      },
+      hall: {
+        kicker: "One clean heel in roof dust",
+        description: "A narrow medical boot print leads from the east stair to the Observatory service door.",
+        clue: "Roof-dust boot print",
+        note: "The tread matches Lucien's storm boots, not the household staff.",
+      },
+    },
+  },
+  {
+    title: "The Clockwork Guest",
+    subtitle: "A blackmail letter, a woundless clock, and the valet who knew every key.",
+    victim: "Julian Mercer",
+    suspects: [suspectPool.sebastian, suspectPool.conrad, suspectPool.isolde],
+    methods: ["Spring-fired mantel dart", "Poisoned shaving soap", "Locked-room gas valve"],
+    locations: ["The Guest Suite", "The Basement", "The Study"],
+    motives: [
+      "To end a blackmail scheme",
+      "To steal a bearer bond",
+      "To conceal a false identity",
+    ],
+    solution: {
+      suspect: "sebastian",
+      method: "Spring-fired mantel dart",
+      location: "The Guest Suite",
+      motive: "To end a blackmail scheme",
+    },
+    reveal:
+      "Sebastian Crow rebuilt the Guest Suite mantel clock to fire a tiny dart when Julian wound it, ending the blackmail that had trapped him for years.",
+    timeline: [
+      { time: "9:50", text: "Julian demands a final payment from Sebastian." },
+      { time: "10:18", text: "Sebastian replaces the clock's winding pin." },
+      { time: "10:30", text: "Julian winds the clock and releases the hidden spring." },
+    ],
+    evidence: {
+      guestSuite: {
+        kicker: "A clock with two springs",
+        description: "The mantel clock contains a second spring aligned with a hollow winding pin.",
+        clue: "Altered mantel clock",
+        note: "The device could be armed only by someone with private access to the guest room.",
+      },
+      basement: {
+        kicker: "A spring cut at the workbench",
+        description: "Fine steel filings and a clipped clock spring remain beneath the servants' repair vise.",
+        clue: "Clock-spring filings",
+        note: "Sebastian signed out the basement workbench that afternoon.",
+      },
+      study: {
+        kicker: "Payments in a servant's name",
+        description: "Julian's letter book records six blackmail payments from S. Crow.",
+        clue: "Blackmail payment ledger",
+        note: "The entries establish Sebastian's long-running motive.",
+      },
+      hall: {
+        kicker: "A master key copied in wax",
+        description: "A wax impression of the Guest Suite key is hidden inside Sebastian's key wallet.",
+        clue: "Guest-key impression",
+        note: "The duplicate let Sebastian enter without disturbing the door register.",
+      },
+      kitchen: {
+        kicker: "Soot on a silver pin",
+        description: "A hollow steel pin washed in the scullery carries the same soot as the altered clock.",
+        clue: "Washed winding pin",
+        note: "The pin was cleaned after Sebastian tested the mechanism.",
+      },
+    },
+  },
+  {
+    title: "The Camellia Poison",
+    subtitle: "A stolen hybrid, a porcelain cup, and petals that changed color overnight.",
+    victim: "Clara Whitlock",
+    suspects: [suspectPool.agatha, suspectPool.elias, suspectPool.mirelle],
+    methods: ["Poisoned camellia tea", "Toxic face powder", "Contaminated sugar tongs"],
+    locations: ["The Conservatory", "The Kitchen", "The Dining Hall"],
+    motives: [
+      "To claim a stolen botanical discovery",
+      "To protect the estate gardens",
+      "To silence a society critic",
+    ],
+    solution: {
+      suspect: "agatha",
+      method: "Poisoned camellia tea",
+      location: "The Conservatory",
+      motive: "To claim a stolen botanical discovery",
+    },
+    reveal:
+      "Agatha Morel steeped a toxic look-alike with Clara's private camellia tea, ensuring the rival botanist could never prove who created the celebrated hybrid.",
+    timeline: [
+      { time: "9:35", text: "Clara announces she will present her breeding journal." },
+      { time: "10:05", text: "Agatha switches the labelled tea caddy." },
+      { time: "10:24", text: "Clara drinks alone beside the conservatory specimens." },
+    ],
+    evidence: {
+      conservatory: {
+        kicker: "Two flowers under one label",
+        description: "The tea caddy contains a toxic cousin of Clara's harmless white camellia.",
+        clue: "Switched camellia caddy",
+        note: "A trained botanist selected the look-alike deliberately.",
+      },
+      garden: {
+        kicker: "Green dye on one glove",
+        description: "Agatha's discarded glove carries the nursery dye used to relabel the toxic plant.",
+        clue: "Nursery-dyed glove",
+        note: "The dye matches the altered conservatory plant marker.",
+      },
+      kitchen: {
+        kicker: "One cup rinsed with spirits",
+        description: "Clara's porcelain cup smells of botanical spirits despite being washed before discovery.",
+        clue: "Rinsed tea cup",
+        note: "Agatha asked the scullery maid for spirits immediately after tea.",
+      },
+      library: {
+        kicker: "A breeding journal copied badly",
+        description: "Agatha's lecture notes reproduce Clara's private hybrid diagrams with dates altered.",
+        clue: "Copied breeding diagrams",
+        note: "Clara could prove Agatha had stolen the discovery.",
+      },
+      dining: {
+        kicker: "The shared sugar is clean",
+        description: "Every guest used the same sugar bowl without illness.",
+        clue: "Uncontaminated sugar bowl",
+        note: "The poison was in Clara's private tea, not the communal service.",
+      },
+    },
+  },
+  {
+    title: "The Cellar Ledger",
+    subtitle: "Counterfeit bonds, a sealed vent, and a vintage that never existed.",
+    victim: "Bernard Pike",
+    suspects: [suspectPool.conrad, suspectPool.celia, suspectPool.elias],
+    methods: ["Blocked cellar vent", "Adulterated tasting glass", "Falling cask brace"],
+    locations: ["The Wine Cellar", "The Basement", "The Dining Hall"],
+    motives: [
+      "To conceal counterfeit wine bonds",
+      "To seize the estate collection",
+      "To hide an illegal export",
+    ],
+    solution: {
+      suspect: "conrad",
+      method: "Blocked cellar vent",
+      location: "The Wine Cellar",
+      motive: "To conceal counterfeit wine bonds",
+    },
+    reveal:
+      "Conrad Vale blocked the Wine Cellar vent and redirected boiler exhaust during Bernard's inventory, preventing him from revealing that the valuable bond-backed vintages never existed.",
+    timeline: [
+      { time: "9:58", text: "Bernard marks twelve bond vintages as missing." },
+      { time: "10:13", text: "Conrad closes the cellar vent from the passage." },
+      { time: "10:27", text: "The boiler cycle fills the sealed inventory room." },
+    ],
+    evidence: {
+      cellar: {
+        kicker: "A vent sealed from outside",
+        description: "The cellar grille is packed with fresh velvet and held by a financier's brass tie pin.",
+        clue: "Blocked cellar vent",
+        note: "The obstruction was placed from the passage side before Bernard began counting.",
+      },
+      study: {
+        kicker: "Bonds for absent bottles",
+        description: "Conrad sold certificates for twelve vintages not listed in any Blackthorn inventory.",
+        clue: "Counterfeit wine bonds",
+        note: "Bernard's audit would have exposed the fraud the next morning.",
+      },
+      basement: {
+        kicker: "A boiler damper turned by hand",
+        description: "The exhaust damper carries fresh brass polish from Conrad's distinctive tie pin.",
+        clue: "Redirected boiler damper",
+        note: "The change sent fumes toward the sealed cellar rather than the chimney.",
+      },
+      dining: {
+        kicker: "Labels printed this week",
+        description: "The celebrated tasting bottles use ink that was delivered only three days ago.",
+        clue: "Fresh counterfeit labels",
+        note: "The false bottles supported Conrad's fictitious bond vintages.",
+      },
+      secretPassage: {
+        kicker: "A financier's route in chalk",
+        description: "A chalk mark matching Conrad's ledger notation points from the Study to the cellar vent.",
+        clue: "Chalked passage route",
+        note: "The passage let Conrad alter the vent unseen.",
+      },
+    },
+  },
+  {
+    title: "A Séance Without Spirits",
+    subtitle: "A hidden battery, a darkened room, and a ghost who knew too much.",
+    victim: "Evelyn Cross",
+    suspects: [suspectPool.isolde, suspectPool.lucien, suspectPool.sebastian],
+    methods: ["Electrified séance table", "Drugged incense", "Weighted spirit cabinet"],
+    locations: ["The Study", "The Ballroom", "The Basement"],
+    motives: [
+      "To conceal fraudulent séances",
+      "To suppress a medical diagnosis",
+      "To recover stolen servant keys",
+    ],
+    solution: {
+      suspect: "isolde",
+      method: "Electrified séance table",
+      location: "The Study",
+      motive: "To conceal fraudulent séances",
+    },
+    reveal:
+      "Isolde March wired the Study séance table to a concealed battery, turning one of her harmless stage effects deadly when Evelyn threatened to demonstrate the fraud.",
+    timeline: [
+      { time: "9:44", text: "Evelyn finds the wires beneath the séance cloth." },
+      { time: "10:09", text: "Isolde exchanges the stage battery for a stronger cell." },
+      { time: "10:33", text: "The lights dim and Evelyn touches the brass table ring." },
+    ],
+    evidence: {
+      study: {
+        kicker: "A brass ring wired below",
+        description: "Copper wire runs from the séance table ring through a newly drilled floor hole.",
+        clue: "Wired séance table",
+        note: "The table was altered after Evelyn announced she would expose the trick.",
+      },
+      basement: {
+        kicker: "The strong battery is missing",
+        description: "Isolde's stage case holds a weak demonstration cell where a high-voltage battery should be.",
+        clue: "Exchanged stage battery",
+        note: "The stronger cell fits the fresh clamp marks beneath the Study.",
+      },
+      ballroom: {
+        kicker: "Ghost silk and copper wire",
+        description: "Isolde's performance trunk contains identical wire among her levitation equipment.",
+        clue: "Matching illusion wire",
+        note: "The materials tie the deadly alteration to Isolde's stage apparatus.",
+      },
+      guestSuite: {
+        kicker: "A confession interrupted",
+        description: "Evelyn's letter says she will reveal how Isolde learned guests' secrets through speaking tubes.",
+        clue: "Fraud exposé letter",
+        note: "The letter gives Isolde a direct reason to stop the demonstration.",
+      },
+      attic: {
+        kicker: "A burned rehearsal diagram",
+        description: "A charred sketch shows the table circuit and Isolde's handwritten timing cues.",
+        clue: "Burned circuit sketch",
+        note: "The diagram proves the current was planned, not accidental.",
+      },
+    },
+  },
+  {
+    title: "The Bell at Dawn",
+    subtitle: "A charitable trust, a cut rope, and the sound that covered a fall.",
+    victim: "Arthur Vale",
+    suspects: [suspectPool.silas, suspectPool.beatrice, suspectPool.conrad],
+    methods: ["Released bell counterweight", "Cut staircase runner", "Tampered balcony latch"],
+    locations: ["The Grand Hall", "The Attic", "The Library"],
+    motives: [
+      "To conceal charity embezzlement",
+      "To protect an inheritance claim",
+      "To erase a private debt",
+    ],
+    solution: {
+      suspect: "silas",
+      method: "Released bell counterweight",
+      location: "The Grand Hall",
+      motive: "To conceal charity embezzlement",
+    },
+    reveal:
+      "Reverend Silas Flint cut the Attic bell restraint so its counterweight would fall through the Grand Hall at dawn, silencing Arthur before he could expose the missing charity funds.",
+    timeline: [
+      { time: "5:31", text: "Arthur hides a copy of the trust ledger in the Library." },
+      { time: "5:46", text: "Silas cuts the counterweight restraint in the Attic." },
+      { time: "6:00", text: "The dawn bell releases the weight above the Grand Hall." },
+    ],
+    evidence: {
+      hall: {
+        kicker: "A counterweight fell before the bell",
+        description: "The Grand Hall floor bears a fresh iron strike directly beneath the bell shaft.",
+        clue: "Released bell counterweight",
+        note: "The mechanism was altered to fall when the dawn bell began.",
+      },
+      attic: {
+        kicker: "A rope cut with a ceremonial blade",
+        description: "The restraint fibers carry beeswax from the chaplain's vestment knife.",
+        clue: "Waxed cut rope",
+        note: "Silas alone used that wax on the morning service equipment.",
+      },
+      library: {
+        kicker: "Donations that never reached the poor",
+        description: "Arthur's copied ledger shows five trust withdrawals signed S. Flint.",
+        clue: "Missing charity ledger",
+        note: "Arthur planned to present the accounts to the trustees after breakfast.",
+      },
+      study: {
+        kicker: "A seal pressed in reverse",
+        description: "False approval letters use a reversed impression of the estate charity seal.",
+        clue: "Forged charity approvals",
+        note: "The reversed seal came from Silas's private travelling press.",
+      },
+      garden: {
+        kicker: "Chapel mud before sunrise",
+        description: "Pale chapel-path clay marks the service stair from Silas's rooms to the Attic.",
+        clue: "Dawn chapel footprints",
+        note: "The prints place Silas at the bell mechanism before dawn.",
+      },
+    },
+  },
+  {
+    title: "The Crimson Masquerade",
+    subtitle: "A borrowed mask, a vanished key, and a toast delivered to the wrong guest.",
+    victim: "Helena Ward",
+    suspects: [suspectPool.celia, suspectPool.mirelle, suspectPool.isolde],
+    methods: ["Poisoned mask perfume", "Tampered champagne coupe", "Rigged balcony screen"],
+    locations: ["The Ballroom", "The Guest Suite", "The Moon Garden"],
+    motives: [
+      "To conceal a secret engagement contract",
+      "To steal a patron's fortune",
+      "To protect a false spiritual prophecy",
+    ],
+    solution: {
+      suspect: "celia",
+      method: "Poisoned mask perfume",
+      location: "The Ballroom",
+      motive: "To conceal a secret engagement contract",
+    },
+    reveal:
+      "Celia Harrow painted poison into Helena's masquerade mask after learning Helena held the contract that proved Celia had secretly promised the estate to two different heirs.",
+    timeline: [
+      { time: "11:04", text: "Helena locks the engagement contract in the Guest Suite." },
+      { time: "11:18", text: "Celia switches two masks beside the Ballroom cloakroom." },
+      { time: "11:32", text: "Helena puts on the perfumed mask for the final dance." },
+    ],
+    evidence: {
+      ballroom: {
+        kicker: "Perfume beneath crimson paint",
+        description: "The mask lining carries bitter almond oil under a fresh coat of theatrical perfume.",
+        clue: "Poisoned masquerade mask",
+        note: "The poison was designed for Helena's mask and activated by the warmth of her face.",
+      },
+      guestSuite: {
+        kicker: "A contract hidden in a hatbox",
+        description: "Helena's signed contract names Celia as broker to two competing inheritance promises.",
+        clue: "Double engagement contract",
+        note: "Publication would have destroyed Celia's legal career.",
+      },
+      conservatory: {
+        kicker: "A perfume vial among camellias",
+        description: "Celia's empty perfume vial contains the same almond residue as the mask.",
+        clue: "Discarded perfume vial",
+        note: "The vial was hidden minutes after the masks were switched.",
+      },
+      hall: {
+        kicker: "Two masks, one numbered twice",
+        description: "The cloakroom ledger records Celia correcting Helena's mask number in her own hand.",
+        clue: "Altered mask register",
+        note: "The correction let Celia target the correct mask without entering the Ballroom.",
+      },
+      garden: {
+        kicker: "A key thrown short of the pond",
+        description: "The Guest Suite key lies in wet grass with Celia's gold glove fiber caught in its bow.",
+        clue: "Discarded guest key",
+        note: "Celia used the key to find the contract before preparing the mask.",
+      },
+    },
+  },
+];
 
 const detectiveRoster = [
   {
@@ -884,38 +1549,6 @@ const menuItems = [
   },
 ] as const;
 
-const suspects = [
-  {
-    id: "celia",
-    name: "Celia Harrow",
-    role: "Estate solicitor",
-    detail: "Controlled the manor accounts and wore a white camellia.",
-    monogram: "CH",
-  },
-  {
-    id: "elias",
-    name: "Elias Voss",
-    role: "Head groundskeeper",
-    detail: "Knew every garden lock, but his boots do not match the hall print.",
-    monogram: "EV",
-  },
-  {
-    id: "mirelle",
-    name: "Mirelle Ash",
-    role: "Concert pianist",
-    detail: "Argued with Edmund, then performed in front of twelve witnesses.",
-    monogram: "MA",
-  },
-];
-
-const methods = ["Silver letter opener", "Poisoned cordial", "Falling marble bust"];
-const locations = ["The Library", "The Conservatory", "The Study"];
-const motives = [
-  "To conceal the stolen estate funds",
-  "To inherit Blackthorn Manor",
-  "To stop a private engagement",
-];
-
 const turnPhases: { id: TurnPhase; label: string; detail: string }[] = [
   { id: "roll", label: "Roll", detail: "Cast the movement die" },
   { id: "move", label: "Move", detail: "Follow connected corridors" },
@@ -981,6 +1614,30 @@ function readPreference(key: string, fallback: boolean) {
   }
 }
 
+function quietRoomEvidence(room: Room, caseFile: CaseFile, caseIndex: number): EvidenceVariant {
+  const observations = [
+    {
+      kicker: "A room left undisturbed",
+      description: `The ${room.name} inventory is complete, with no disturbance after the final confirmed sighting of ${caseFile.victim}.`,
+      clue: `Cleared ${room.name}`,
+      note: `Negative evidence removes the ${room.name} from the immediate route and tightens the case timeline.`,
+    },
+    {
+      kicker: "Silence that narrows the route",
+      description: `Wax dust at the ${room.name} threshold is unbroken; nobody crossed it during the critical interval.`,
+      clue: `${room.name} threshold record`,
+      note: `The intact threshold excludes this doorway and shortens the culprit's possible path through Blackthorn.`,
+    },
+    {
+      kicker: "An alibi preserved in place",
+      description: `The ${room.name} clock, lamp, and service register agree on an empty room throughout the decisive minutes.`,
+      clue: `${room.name} exclusion`,
+      note: `Three independent details clear this room without clearing any suspect.`,
+    },
+  ];
+  return observations[caseIndex % observations.length];
+}
+
 export default function Home() {
   const [scene, setScene] = useState<Scene>("opening");
   const [openingDeparting, setOpeningDeparting] = useState(false);
@@ -1039,14 +1696,21 @@ export default function Home() {
 
   const evidenceCount = investigated.length;
   const canAccuse = evidenceCount >= 4;
-  const currentCase = caseVariations[caseVariant];
+  const currentCase = caseFiles[caseVariant];
+  const tableWitness =
+    currentCase.suspects.find(
+      (suspect) => suspect.id !== currentCase.solution.suspect,
+    ) ?? currentCase.suspects[0]!;
   const caseRooms = useMemo(
     () =>
       rooms.map((room) => ({
         ...room,
-        ...evidenceVariants[room.id][caseVariant],
+        ...(caseVariant === 0
+          ? evidenceVariants[room.id][0]
+          : currentCase.evidence[room.id] ??
+            quietRoomEvidence(room, currentCase, caseVariant)),
       })),
-    [caseVariant],
+    [caseVariant, currentCase],
   );
   const activeRoomData = caseRooms.find((room) => room.id === activeRoom);
   const activeDetective = detectives.find((detective) => detective.id === activePlayerId)
@@ -1436,7 +2100,9 @@ export default function Home() {
   };
 
   const restartBoard = () => {
-    const nextVariant = (caseVariant + 1 + Math.floor(Math.random() * 2)) % caseVariations.length;
+    const nextVariant =
+      (caseVariant + 1 + Math.floor(Math.random() * (caseFiles.length - 1))) %
+      caseFiles.length;
     const nextDetectives = drawDetectives();
     setCaseVariant(nextVariant);
     setDetectives(nextDetectives);
@@ -1475,10 +2141,10 @@ export default function Home() {
 
   const submitTheory = () => {
     const correct =
-      selectedSuspect === "celia" &&
-      selectedMethod === "Silver letter opener" &&
-      selectedLocation === "The Library" &&
-      selectedMotive === "To conceal the stolen estate funds";
+      selectedSuspect === currentCase.solution.suspect &&
+      selectedMethod === currentCase.solution.method &&
+      selectedLocation === currentCase.solution.location &&
+      selectedMotive === currentCase.solution.motive;
 
     if (correct) {
       playChime(soundOn, true);
@@ -1786,7 +2452,7 @@ export default function Home() {
             <div className="menu-status">
               <div className="live-dot" />
               <span>Blackthorn table ready</span>
-              <small>Solo bots or a private friend table</small>
+              <small>{caseFiles.length} rotating cases · solo bots or a friend table</small>
             </div>
           </nav>
         </section>
@@ -1943,19 +2609,24 @@ export default function Home() {
           <div className="tabletop-header">
             <div>
               <p className="eyebrow">
-                Blackthorn table · Case {String(caseVariant + 1).padStart(3, "0")}
+                Blackthorn table · Case {String(caseVariant + 1).padStart(3, "0")} of{" "}
+                {String(caseFiles.length).padStart(3, "0")}
               </p>
               <h2 id="case-title">{currentCase.title}</h2>
               <p>{currentCase.subtitle}</p>
+              <span className="case-victim">
+                Victim: {currentCase.victim}
+              </span>
             </div>
             <div className="tabletop-header-actions">
               <button
-                className="icon-button"
+                className="new-case-button secondary-button"
                 onClick={restartBoard}
                 aria-label="Start a new case with a new cast and clues"
                 title="New case, cast, and clues"
               >
                 <Shuffle size={18} />
+                <span>New case</span>
               </button>
               <button className="notebook-button" onClick={() => setNotebookOpen(true)}>
                 <BookOpen size={18} />
@@ -2120,10 +2791,9 @@ export default function Home() {
                             style={{ "--player-color": detective.color } as CSSProperties}
                           >
                             <span
-                              className="pawn-head"
+                              className="pawn-character"
                               style={portraitStyle(detective.portraitIndex)}
                             />
-                            <span className="pawn-body" />
                             <b>{detective.initials.slice(0, 1)}</b>
                           </i>
                         ))}
@@ -2191,10 +2861,9 @@ export default function Home() {
                             style={{ "--player-color": detective.color } as CSSProperties}
                           >
                             <span
-                              className="pawn-head"
+                              className="pawn-character"
                               style={portraitStyle(detective.portraitIndex)}
                             />
-                            <span className="pawn-body" />
                             <b>{detective.initials.slice(0, 1)}</b>
                           </i>
                         ))}
@@ -2315,9 +2984,10 @@ export default function Home() {
               <span />
             </div>
             <div>
-              <small>Table talk · Celia Harrow&apos;s statement</small>
+              <small>Table talk · {tableWitness.name}&apos;s statement</small>
               <p>
-                “At half past ten, I heard Edmund pacing in the library.”
+                “I saw {currentCase.suspects[0].name} near{" "}
+                {currentCase.locations[1]} before {currentCase.victim} was found.”
                 Decide together: memory, mistake, or deliberate misdirection?
               </p>
             </div>
@@ -2336,13 +3006,11 @@ export default function Home() {
             <Check size={42} strokeWidth={1.2} />
           </div>
           <p className="eyebrow">
-            Case {String(caseVariant + 1).padStart(3, "0")} · Truth established
+            Case {String(caseVariant + 1).padStart(3, "0")} of{" "}
+            {String(caseFiles.length).padStart(3, "0")} · Truth established
           </p>
           <h2 id="verdict-title">The veil is lifted.</h2>
-          <p className="verdict-lead">
-            Celia Harrow killed Edmund in the library with the silver letter
-            opener, then burned the account page that exposed her embezzlement.
-          </p>
+          <p className="verdict-lead">{currentCase.reveal}</p>
 
           <div className="score-card">
             <div>
@@ -2358,18 +3026,12 @@ export default function Home() {
           </div>
 
           <div className="truth-timeline">
-            <div>
-              <span>10:12</span>
-              <p>Celia confronts Edmund over the missing funds.</p>
-            </div>
-            <div>
-              <span>10:17</span>
-              <p>The watch shatters as Edmund falls beside the desk.</p>
-            </div>
-            <div>
-              <span>10:21</span>
-              <p>Celia crosses the wet conservatory and burns the ledger page.</p>
-            </div>
+            {currentCase.timeline.map((moment) => (
+              <div key={`${moment.time}-${moment.text}`}>
+                <span>{moment.time}</span>
+                <p>{moment.text}</p>
+              </div>
+            ))}
           </div>
 
           <button className="primary-button" onClick={() => moveTo("menu")}>
@@ -2502,7 +3164,7 @@ export default function Home() {
               <fieldset>
                 <legend>Who is responsible?</legend>
                 <div className="suspect-options">
-                  {suspects.map((suspect) => (
+                  {currentCase.suspects.map((suspect) => (
                     <label
                       key={suspect.id}
                       className={selectedSuspect === suspect.id ? "selected" : ""}
@@ -2534,7 +3196,9 @@ export default function Home() {
                     onChange={(event) => setSelectedMethod(event.target.value)}
                   >
                     <option value="">Choose the method</option>
-                    {methods.map((method) => <option key={method}>{method}</option>)}
+                    {currentCase.methods.map((method) => (
+                      <option key={method}>{method}</option>
+                    ))}
                   </select>
                 </label>
                 <label>
@@ -2544,7 +3208,9 @@ export default function Home() {
                     onChange={(event) => setSelectedLocation(event.target.value)}
                   >
                     <option value="">Choose the location</option>
-                    {locations.map((location) => <option key={location}>{location}</option>)}
+                    {currentCase.locations.map((location) => (
+                      <option key={location}>{location}</option>
+                    ))}
                   </select>
                 </label>
                 <label>
@@ -2554,7 +3220,9 @@ export default function Home() {
                     onChange={(event) => setSelectedMotive(event.target.value)}
                   >
                     <option value="">Choose the motive</option>
-                    {motives.map((motive) => <option key={motive}>{motive}</option>)}
+                    {currentCase.motives.map((motive) => (
+                      <option key={motive}>{motive}</option>
+                    ))}
                   </select>
                 </label>
               </div>
@@ -2562,8 +3230,9 @@ export default function Home() {
               {wrongTheory && (
                 <div className="theory-warning" role="alert">
                   <Eye size={17} />
-                  The evidence contradicts this theory. Revisit the print, the
-                  watch, and the burned ledger—no penalty in practice.
+                  The evidence contradicts this theory. Compare the timeline,
+                  room exclusions, and strongest physical clues—there is no
+                  penalty for revising your deduction.
                 </div>
               )}
             </div>
