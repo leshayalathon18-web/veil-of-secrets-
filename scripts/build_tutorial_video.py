@@ -1,13 +1,13 @@
 """Build the authored Veil of Secrets tutorial film.
 
-The film uses only project-owned artwork, Windows speech synthesis, and an
-original procedural motion-graphics treatment. It emits the phone-friendly
-H.264 video, poster, and WebVTT captions consumed by the tutorial screen.
+The film combines project-owned artwork, the selected Eldrin British-baritone
+narration take, and an original procedural motion-graphics treatment. It emits
+the phone-friendly H.264 video, poster, and WebVTT captions consumed by the
+tutorial screen.
 """
 
 from __future__ import annotations
 
-import base64
 import math
 import os
 import subprocess
@@ -56,9 +56,8 @@ CHAPTERS = (
         "Welcome to Blackthorn",
         "Your objective",
         (
-            "Welcome to Blackthorn Manor, where every match changes the victim, culprit, method, location, motive, and evidence.",
-            "Do not merely guess.",
-            "Build a complete theory before midnight.",
+            "Welcome to Blackthorn Manor. Every match changes the victim, culprit, method, location, motive, and evidence.",
+            "Build a complete theory before midnight; do not merely guess.",
         ),
     ),
     Chapter(
@@ -66,55 +65,68 @@ CHAPTERS = (
         "A detective's turn",
         (
             "Detectives act in order.",
-            "On your turn, roll the brass die; its result becomes movement points.",
-            "Follow connected marble corridors, and remember that unused movement is lost.",
+            "Roll the brass die to gain movement points.",
+            "Follow connected marble corridors carefully, because unused movement is lost when your turn ends.",
         ),
     ),
     Chapter(
         "Walk the manor",
         "Rooms and routes",
         (
-            "Tap a glowing hallway or doorway and your illustrated character walks there, one space at a time.",
-            "Friends and bots move visibly too.",
-            "Entering a room ends your route, so choose carefully.",
+            "Tap a glowing hallway or doorway.",
+            "Your illustrated detective walks every space, while friends and bots move visibly.",
+            "Entering a room ends your route.",
         ),
     ),
     Chapter(
         "Search for evidence",
         "One search per turn",
         (
-            "Inside a room, search once.",
-            "A clue can confirm a timeline, expose a motive, identify a method, or clear a location.",
-            "Evidence changes between cases, so old solutions will not help.",
+            "Search once inside each room.",
+            "Clues confirm timelines, expose motives, identify methods, or clear locations.",
+            "Evidence changes between cases, so memorized solutions cannot help.",
         ),
     ),
     Chapter(
         "Read your notebook",
         "Connect the facts",
         (
-            "Every discovery enters your notebook automatically.",
+            "Discoveries enter your notebook automatically.",
             "Review evidence, witnesses, suspects, motives, and room notes.",
-            "Negative evidence matters because an untouched threshold can eliminate an impossible route.",
+            "Even an untouched threshold can eliminate an impossible route.",
         ),
     ),
     Chapter(
         "Discuss and deceive",
         "Friend-table strategy",
         (
-            "With a friend, compare what you found.",
-            "You may share everything, hold back one detail, or bluff about a suspicion.",
-            "Listen for contradictions: the evidence is shared, but interpretation is yours.",
+            "Compare findings with friends.",
+            "Share everything, hide a detail, or bluff about a suspicion.",
+            "The evidence is shared, but its meaning—and your strategy—remain yours.",
         ),
     ),
     Chapter(
         "Seal your accusation",
         "Solve the whole case",
         (
-            "After four clues, select the suspect, method, location, and motive, then submit your theory.",
-            "A wrong answer costs time but never removes you.",
+            "After four clues, accuse a suspect and choose the method, location, and motive.",
+            "Wrong answers cost time, never elimination.",
             "Search widely, compare stories, and trust the trail.",
         ),
     ),
+)
+
+# Chapter cuts are the midpoints of the six authored [short pause] beats in
+# the approved Eldrin take. Each cut is retimed independently so the voice and
+# on-screen lesson remain locked together without changing pitch.
+ELDRIN_SEGMENTS = (
+    (0.000, 14.613),
+    (14.613, 27.842),
+    (27.842, 39.881),
+    (39.881, 55.430),
+    (55.430, 69.099),
+    (69.099, 82.746),
+    (82.746, 98.270),
 )
 
 
@@ -577,26 +589,39 @@ def timecode(seconds: float) -> str:
 
 def synthesize_narration() -> tuple[Path, list[float], float]:
     BUILD.mkdir(parents=True, exist_ok=True)
+    narration_source = OUTPUT / "eldrin-narration.mp3"
+    if not narration_source.exists():
+        raise RuntimeError(
+            "The approved Eldrin narration take is missing from public/tutorial."
+        )
+
     segment_paths: list[Path] = []
     durations: list[float] = []
-    voice_script = ROOT / "scripts" / "synthesize_tutorial_voice.ps1"
-    for index, chapter in enumerate(CHAPTERS):
+    ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+    target_voice_seconds = CHAPTER_SECONDS - 0.4
+    for index, (start, end) in enumerate(ELDRIN_SEGMENTS):
         target = BUILD / f"voice-{index:02d}.wav"
-        encoded = base64.b64encode(chapter.narration.encode("utf-8")).decode("ascii")
+        source_duration = end - start
+        tempo = max(1.0, source_duration / target_voice_seconds)
         subprocess.run(
             [
-                "powershell",
-                "-NoProfile",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-File",
-                str(voice_script),
-                "-TextBase64",
-                encoded,
-                "-OutFile",
+                ffmpeg,
+                "-y",
+                "-ss",
+                f"{start:.3f}",
+                "-t",
+                f"{source_duration:.3f}",
+                "-i",
+                str(narration_source),
+                "-af",
+                f"atempo={tempo:.6f},aresample=44100,aformat=sample_fmts=s16:channel_layouts=mono",
+                "-c:a",
+                "pcm_s16le",
                 str(target),
             ],
             check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         )
         with wave.open(str(target), "rb") as source:
             duration = source.getnframes() / source.getframerate()
@@ -690,12 +715,12 @@ def mix_audio(silent_video: Path, narration: Path, starts: list[float], duration
     dice = PUBLIC / "audio" / "dice-roll-wood.mp3"
     dice_delay = int((starts[1] + 3.2) * 1000)
     filter_graph = (
-        f"[1:a]aformat=sample_rates=44100:channel_layouts=stereo,volume=1.35[voice];"
-        f"[2:a]adelay=delays={dice_delay}:all=1,volume=0.62[dice];"
-        f"anoisesrc=color=pink:amplitude=0.008:sample_rate=44100:d={duration:.3f},"
+        f"[1:a]aformat=sample_rates=44100:channel_layouts=stereo,volume=0.88[voice];"
+        f"[2:a]adelay=delays={dice_delay}:all=1,volume=0.56[dice];"
+        f"anoisesrc=color=pink:amplitude=0.0065:sample_rate=44100:d={duration:.3f},"
         "highpass=f=140,lowpass=f=1500[amb];"
-        f"sine=frequency=55:sample_rate=44100:duration={duration:.3f},volume=0.018[drone];"
-        "[voice][dice][amb][drone]amix=inputs=4:duration=longest:dropout_transition=2,"
+        f"sine=frequency=55:sample_rate=44100:duration={duration:.3f},volume=0.014[drone];"
+        "[voice][dice][amb][drone]amix=inputs=4:duration=longest:dropout_transition=2:normalize=0,"
         "alimiter=limit=0.93[a]"
     )
     subprocess.run(

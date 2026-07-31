@@ -26,8 +26,7 @@ logos.
 
 The 90-second tutorial film in `public/tutorial/` is an original programmatic
 motion-graphics production made from the game's original character and brand
-art. Narration was synthesized locally with a Windows system voice; the film
-contains no third-party footage.
+art. The film contains no third-party footage.
 
 ## Audio
 
@@ -38,3 +37,8 @@ The wooden-table dice roll is
 by jaku5 (Freesound), downloaded from Pixabay and used under the
 [Pixabay Content License](https://pixabay.com/service/license-summary/).
 The recording is stored as `public/audio/dice-roll-wood.mp3`.
+
+The tutorial narrator is **Eldrin – Crisp British Baritone**, generated for
+this project with ElevenLabs Eleven v3 on July 31, 2026. The authored narration
+and resulting production take are used under the connected ElevenLabs account
+terms.
