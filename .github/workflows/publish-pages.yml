@@ -1,0 +1,55 @@
+name: Publish Veil of Secrets
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: veil-of-secrets-pages
+  cancel-in-progress: true
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the game
+        uses: actions/checkout@v4
+
+      - name: Restore authored narrator audio
+        shell: bash
+        run: |
+          for slug in rowan-black mara-ashford beatrice-vale; do
+            base64 --decode "assets/tutorial-narrators/${slug}-narration-compact.mp3.b64" \
+              > "public/tutorial/${slug}-narration-compact.mp3"
+          done
+
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Build the phone and desktop release
+        run: |
+          npm ci
+          npm run build:pages
+
+      - name: Publish directly to GitHub Pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          cd dist-pages
+          touch .nojekyll
+          git init
+          git config user.name "Veil of Secrets Publisher"
+          git config user.email "actions@users.noreply.github.com"
+          git add --all
+          git commit -m "Publish narrator casting update"
+          git branch -M gh-pages
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin gh-pages
