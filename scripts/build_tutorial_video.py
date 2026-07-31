@@ -223,40 +223,106 @@ CARDS = [portrait_card(index) for index in range(10)]
 
 
 ROOMS = (
-    ("LIBRARY", (82, 150, 322, 318), "#5b2430"),
-    ("STUDY", (370, 138, 584, 274), "#253c48"),
-    ("BALLROOM", (640, 138, 958, 286), "#513453"),
-    ("OBSERVATORY", (1000, 138, 1190, 285), "#263f51"),
-    ("KITCHEN", (82, 390, 330, 535), "#4e3a2c"),
-    ("GRAND HALL", (410, 360, 734, 536), "#5b4928"),
-    ("GARDEN", (802, 370, 1190, 536), "#304c38"),
+    ("observatory", "OBSERVATORY", 1, 1, 4, 3, "#355d70", 3, 4),
+    ("attic", "ATTIC", 6, 1, 3, 3, "#5d5148", 7, 4),
+    ("library", "LIBRARY", 10, 1, 4, 3, "#75444c", 12, 4),
+    ("study", "STUDY", 15, 1, 6, 3, "#5a4a76", 17, 4),
+    ("masterBedroom", "MASTER BEDROOM", 1, 6, 4, 4, "#6d3444", 5, 7),
+    ("ballroom", "BALLROOM", 6, 6, 3, 4, "#7a5b35", 9, 7),
+    ("hall", "GRAND HALL", 10, 6, 4, 4, "#8a6938", 14, 7),
+    ("guestSuite", "GUEST SUITE", 15, 6, 6, 4, "#4a5f72", 14, 7),
+    ("dining", "DINING HALL", 1, 11, 4, 4, "#6d3b35", 5, 12),
+    ("kitchen", "KITCHEN", 6, 11, 3, 4, "#6a503b", 9, 12),
+    ("conservatory", "CONSERVATORY", 10, 11, 4, 4, "#3f6754", 14, 12),
+    ("garden", "MOON GARDEN", 15, 11, 6, 4, "#2f654c", 14, 12),
+    ("cellar", "WINE CELLAR", 1, 16, 4, 3, "#4e4041", 3, 15),
+    ("basement", "BASEMENT", 6, 16, 3, 3, "#563b32", 7, 15),
+    ("secretPassage", "SECRET PASSAGE", 10, 16, 4, 3, "#41364e", 12, 15),
 )
+
+BOARD_LEFT, BOARD_TOP, BOARD_RIGHT, BOARD_BOTTOM = 50, 112, 984, 562
+CELL_WIDTH = (BOARD_RIGHT - BOARD_LEFT) / 20
+CELL_HEIGHT = (BOARD_BOTTOM - BOARD_TOP) / 18
+
+
+def grid_center(column: int, row: int) -> tuple[float, float]:
+    return (
+        BOARD_LEFT + (column - 0.5) * CELL_WIDTH,
+        BOARD_TOP + (row - 0.5) * CELL_HEIGHT,
+    )
+
+
+def room_center(room_id: str) -> tuple[float, float]:
+    room = next(room for room in ROOMS if room[0] == room_id)
+    _, _, column, row, width, height, _, _, _ = room
+    return (
+        BOARD_LEFT + (column - 1 + width / 2) * CELL_WIDTH,
+        BOARD_TOP + (row - 1 + height / 2) * CELL_HEIGHT,
+    )
 
 
 def board_base() -> Image.Image:
     image = gradient_background()
-    draw = ImageDraw.Draw(image)
-    draw.rounded_rectangle((48, 110, 1232, 565), radius=16, fill="#0c090a", outline="#755e34", width=2)
-    for name, (x1, y1, x2, y2), hue in ROOMS:
-        draw.rounded_rectangle((x1, y1, x2, y2), radius=8, fill=hue, outline=GOLD, width=2)
-        draw.rectangle((x1 + 7, y1 + 7, x2 - 7, y2 - 7), outline="#1a1113", width=2)
-        draw.text((x1 + 15, y1 + 13), name, font=LABEL_SMALL, fill=PAPER)
-        for offset in range(36, y2 - y1 - 8, 27):
-            draw.line((x1 + 12, y1 + offset, x2 - 12, y1 + offset), fill="#ffffff13", width=1)
-    corridors = (
-        (322, 225, 370, 225), (584, 210, 640, 210), (958, 210, 1000, 210),
-        (204, 318, 204, 390), (494, 274, 494, 360), (850, 286, 850, 370),
-        (330, 462, 410, 462), (734, 462, 802, 462),
-    )
-    for line in corridors:
-        draw.line(line, fill="#d8cfbd", width=24)
-        draw.line(line, fill="#766f65", width=2)
-        x1, y1, x2, y2 = line
-        steps = max(1, int(math.dist((x1, y1), (x2, y2)) // 20))
-        for step in range(steps + 1):
-            p = step / max(1, steps)
-            x, y = int(lerp(x1, x2, p)), int(lerp(y1, y2, p))
-            draw.rectangle((x - 8, y - 8, x + 8, y + 8), outline="#9d9587", width=1)
+    draw = ImageDraw.Draw(image, "RGBA")
+    draw.rounded_rectangle((37, 102, 997, 570), radius=8, fill="#0b0808", outline="#755e34", width=2)
+    draw.rounded_rectangle((44, 108, 990, 565), radius=4, outline=(203, 167, 90, 75), width=1)
+
+    # Match the playable board: three marble cross-corridors on the same
+    # 20-column by 18-row floor-plan grid used by the React game.
+    corridor_spaces = {
+        *((column, row) for row in (4, 10, 15) for column in range(1, 21)),
+        *((column, row) for column in (5, 9, 14) for row in range(1, 19)),
+    }
+    for column, row in sorted(corridor_spaces, key=lambda item: (item[1], item[0])):
+        cx, cy = grid_center(column, row)
+        x1 = cx - CELL_WIDTH * 0.43
+        x2 = cx + CELL_WIDTH * 0.43
+        y1 = cy - CELL_HEIGHT * 0.39
+        y2 = cy + CELL_HEIGHT * 0.39
+        draw.rounded_rectangle((x1 + 2, y1 + 3, x2 + 2, y2 + 3), radius=2, fill=(0, 0, 0, 125))
+        draw.rounded_rectangle((x1, y1, x2, y2), radius=2, fill="#b9b3a7", outline="#635f58", width=1)
+        draw.line((x1 + 4, y1 + 3, x2 - 4, y2 - 3), fill=(255, 255, 255, 38), width=1)
+        draw.line((x1 + 5, y2 - 3, x2 - 3, y1 + 4), fill=(55, 51, 48, 30), width=1)
+
+    for room_number, room in enumerate(ROOMS, start=1):
+        room_id, name, column, row, width, height, hue, door_column, door_row = room
+        x1 = BOARD_LEFT + (column - 1) * CELL_WIDTH + 2
+        y1 = BOARD_TOP + (row - 1) * CELL_HEIGHT + 2
+        x2 = BOARD_LEFT + (column - 1 + width) * CELL_WIDTH - 2
+        y2 = BOARD_TOP + (row - 1 + height) * CELL_HEIGHT - 2
+        draw.rounded_rectangle((x1 + 3, y1 + 5, x2 + 3, y2 + 5), radius=5, fill=(0, 0, 0, 155))
+        draw.rounded_rectangle((x1, y1, x2, y2), radius=5, fill="#100d0e", outline=hue, width=3)
+        draw.rounded_rectangle((x1 + 5, y1 + 5, x2 - 5, y2 - 5), radius=3, fill=hue + "42", outline=(255, 255, 255, 23), width=1)
+
+        # Subtle furniture plans echo the actual board without competing with
+        # the room names at phone size.
+        furniture_y = y1 + (y2 - y1) * 0.57
+        draw.ellipse((x1 + 18, furniture_y, x2 - 18, min(y2 - 10, furniture_y + 20)), outline=(230, 218, 190, 35), width=2)
+        for offset in range(3):
+            shelf_y = y1 + 34 + offset * 13
+            if shelf_y < y2 - 17:
+                draw.line((x1 + 14, shelf_y, x2 - 14, shelf_y), fill=(255, 255, 255, 17), width=1)
+
+        label_lines = wrapped(draw, name, LABEL_SMALL, max(48, int(x2 - x1 - 23)))[:2]
+        label_y = y1 + 9
+        for label_line in label_lines:
+            draw.text((x1 + 10, label_y), label_line, font=LABEL_SMALL, fill=PAPER)
+            label_y += 16
+        draw.text((x2 - 27, y2 - 18), f"{room_number:02d}", font=LABEL_SMALL, fill=(255, 255, 255, 50))
+
+        # Brass doorway notch placed at the exact gameplay entrance.
+        dcx, dcy = grid_center(door_column, door_row)
+        target_x = min(max(dcx, x1), x2)
+        target_y = min(max(dcy, y1), y2)
+        draw.line((target_x - 8, target_y, target_x + 8, target_y), fill=GOLD_BRIGHT, width=3)
+
+    # The fold marks make the map read as a physical tabletop board.
+    draw.line(((BOARD_LEFT + BOARD_RIGHT) / 2, BOARD_TOP, (BOARD_LEFT + BOARD_RIGHT) / 2, BOARD_BOTTOM), fill=(0, 0, 0, 60), width=2)
+    draw.line((BOARD_LEFT, (BOARD_TOP + BOARD_BOTTOM) / 2, BOARD_RIGHT, (BOARD_TOP + BOARD_BOTTOM) / 2), fill=(0, 0, 0, 55), width=2)
+    draw.text((1016, 142), "BLACKTHORN", font=LABEL_SMALL, fill=GOLD)
+    draw.text((1016, 162), "MANOR BOARD", font=LABEL_SMALL, fill=PAPER)
+    draw.text((1016, 190), "15 rooms", font=BODY_SMALL, fill=MUTED)
+    draw.text((1016, 216), "Shared routes", font=BODY_SMALL, fill=MUTED)
     return image
 
 
@@ -355,11 +421,18 @@ def render_scene(chapter_index: int, local: float, frame_index: int) -> Image.Im
             draw.text((x + 18, y + 19), label, font=LABEL, fill=GOLD_BRIGHT)
 
     elif chapter_index == 1:
-        draw.rounded_rectangle((1020, 315, 1190, 532), radius=14, fill=(13, 9, 10, 235), outline=GOLD, width=2)
+        draw.rounded_rectangle((1016, 288, 1210, 535), radius=14, fill=(13, 9, 10, 235), outline=GOLD, width=2)
         face = 1 + int(local * 28) % 6 if local < 0.48 else 5
-        draw_die(draw, (1105, 405), face, local * 28)
-        draw.text((1067, 485), "ROLL 5", font=DISPLAY_BOLD, fill=PAPER)
-        path = ((570, 510), (570, 462), (494, 462), (494, 405), (494, 350), (494, 300))
+        draw_die(draw, (1113, 390), face, local * 28)
+        draw.text((1075, 475), "ROLL 5", font=DISPLAY_BOLD, fill=PAPER)
+        path = (
+            room_center("hall"),
+            grid_center(14, 7),
+            grid_center(14, 6),
+            grid_center(14, 5),
+            grid_center(14, 4),
+            grid_center(13, 4),
+        )
         progress = smooth(max(0, (local - 0.38) / 0.54))
         for point_index, point in enumerate(path):
             active = point_index <= int(progress * (len(path) - 1))
@@ -369,16 +442,35 @@ def render_scene(chapter_index: int, local: float, frame_index: int) -> Image.Im
 
     elif chapter_index == 2:
         routes = (
-            (0, ((570, 510), (494, 462), (494, 350), (475, 270), (475, 225))),
-            (1, ((570, 500), (650, 462), (790, 462), (850, 395), (850, 340))),
-            (2, ((570, 500), (420, 462), (330, 462), (204, 410), (204, 352))),
-            (3, ((570, 500), (720, 462), (850, 462), (1000, 462), (1090, 430))),
+            (0, (
+                room_center("hall"),
+                *(grid_center(14, row) for row in range(7, 3, -1)),
+                *(grid_center(column, 4) for column in range(13, 11, -1)),
+                room_center("library"),
+            )),
+            (1, (
+                room_center("observatory"),
+                *(grid_center(column, 4) for column in range(3, 8)),
+                room_center("attic"),
+            )),
+            (2, (
+                room_center("kitchen"),
+                *(grid_center(9, row) for row in range(12, 9, -1)),
+                *(grid_center(column, 10) for column in range(10, 15)),
+                *(grid_center(14, row) for row in range(11, 13)),
+                room_center("conservatory"),
+            )),
+            (3, (
+                room_center("conservatory"),
+                grid_center(14, 12),
+                room_center("garden"),
+            )),
         )
         for index, route in routes:
             delayed = max(0.0, min(1.0, local * 1.45 - index * 0.12))
             x, y = path_position(route, delayed)
             paste_standee(image, index, x, y, 0.5, glow=index == 0)
-        draw.rounded_rectangle((62, 120, 412, 151), radius=14, fill=(4, 4, 5, 205))
+        draw.rounded_rectangle((62, 120, 420, 151), radius=14, fill=(4, 4, 5, 205))
         draw.text((80, 128), "ALL MOVEMENT STAYS VISIBLE", font=LABEL_SMALL, fill=GOLD_BRIGHT)
 
     elif chapter_index == 3:
@@ -565,6 +657,7 @@ def render_video(starts: list[float], duration: float) -> tuple[Path, Path]:
     ]
     process = subprocess.Popen(command, stdin=subprocess.PIPE)
     total_frames = math.ceil(duration * FPS)
+    poster_frame = int((starts[1] + CHAPTER_SECONDS * 0.58) * FPS)
     try:
         for frame_index in range(total_frames):
             time = frame_index / FPS
@@ -577,7 +670,7 @@ def render_video(starts: list[float], duration: float) -> tuple[Path, Path]:
             frame = render_scene(chapter_index, local, frame_index)
             caption = caption_for(CHAPTERS[chapter_index], local)
             draw_chrome(frame, chapter_index, time / duration, caption)
-            if frame_index == FPS:
+            if frame_index == poster_frame:
                 frame.convert("RGB").save(poster, quality=91, optimize=True)
             assert process.stdin is not None
             process.stdin.write(frame.convert("RGB").tobytes())
