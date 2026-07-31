@@ -11,8 +11,11 @@ The first-launch vertical slice includes:
 
 - Cinematic animated opening and original visual identity
 - Three-step visual rules sequence
-- Raised nine-room manor board with visible corridors and turn-path tracking
-- Physical six-sided die with synchronized rolling and landing audio
+- Walkable nine-room manor floor plan with individual marble hallway spaces
+- Enterable, furnished rooms with working doorways and room-only searches
+- Physical six-sided die with a licensed wooden-table roll recording
+- Ten-character detective roster that draws a different four-player table for each new case
+- Three coherent evidence editions with different room clues, notes, and observations
 - Four sculpted detective pawns, a four-step turn rail, movement points, and turn order
 - Rival movement, round pressure, and flipping manor-event cards
 - Room searches with interactive evidence

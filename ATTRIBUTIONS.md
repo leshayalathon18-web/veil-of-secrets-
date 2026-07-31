@@ -11,8 +11,12 @@ Copyright belongs to the Lucide contributors and Cole Bemis.
 The `public/og.png` social card was created specifically for Veil of Secrets
 with OpenAI image generation. It contains no third-party game artwork or logos.
 
-## Original audio
+## Audio
 
-Interface chimes and the layered dice rattle, impacts, and landing sound are
-synthesized at runtime with the Web Audio API and do not use third-party
-recordings.
+Interface chimes are synthesized at runtime with the Web Audio API.
+
+The wooden-table dice roll is
+["GAMEMisc_Dice Roll On Wood_Jaku5"](https://pixabay.com/sound-effects/film-special-effects-gamemisc-dice-roll-on-wood-jaku5-37414/)
+by jaku5 (Freesound), downloaded from Pixabay and used under the
+[Pixabay Content License](https://pixabay.com/service/license-summary/).
+The recording is stored as `public/audio/dice-roll-wood.mp3`.

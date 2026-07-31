@@ -57,7 +57,13 @@ type Room = {
   area: string;
   neighbors: RoomId[];
   hue: string;
+  board: { column: number; row: number; width: number; height: number };
+  doorway: string;
+  doorSide: "top" | "bottom" | "left" | "right";
 };
+
+type EvidenceVariant = Pick<Room, "kicker" | "description" | "clue" | "note">;
+type BoardNodeId = string;
 
 const rooms: Room[] = [
   {
@@ -72,6 +78,9 @@ const rooms: Room[] = [
     area: "observatory",
     neighbors: ["library", "ballroom"],
     hue: "#355d70",
+    board: { column: 1, row: 1, width: 4, height: 3 },
+    doorway: "p-2-4",
+    doorSide: "bottom",
   },
   {
     id: "library",
@@ -85,6 +94,9 @@ const rooms: Room[] = [
     area: "library",
     neighbors: ["observatory", "study", "hall"],
     hue: "#75444c",
+    board: { column: 6, row: 1, width: 5, height: 3 },
+    doorway: "p-8-4",
+    doorSide: "bottom",
   },
   {
     id: "study",
@@ -98,6 +110,9 @@ const rooms: Room[] = [
     area: "study",
     neighbors: ["library", "dining"],
     hue: "#5a4a76",
+    board: { column: 13, row: 1, width: 4, height: 3 },
+    doorway: "p-15-4",
+    doorSide: "bottom",
   },
   {
     id: "ballroom",
@@ -111,6 +126,9 @@ const rooms: Room[] = [
     area: "ballroom",
     neighbors: ["observatory", "hall", "conservatory"],
     hue: "#7a5b35",
+    board: { column: 1, row: 5, width: 4, height: 4 },
+    doorway: "p-3-9",
+    doorSide: "bottom",
   },
   {
     id: "hall",
@@ -124,6 +142,9 @@ const rooms: Room[] = [
     area: "hall",
     neighbors: ["library", "ballroom", "dining", "cellar"],
     hue: "#8a6938",
+    board: { column: 7, row: 5, width: 4, height: 4 },
+    doorway: "p-8-9",
+    doorSide: "bottom",
   },
   {
     id: "dining",
@@ -137,6 +158,9 @@ const rooms: Room[] = [
     area: "dining",
     neighbors: ["study", "hall", "kitchen"],
     hue: "#6d3b35",
+    board: { column: 13, row: 5, width: 4, height: 3 },
+    doorway: "p-14-8",
+    doorSide: "bottom",
   },
   {
     id: "conservatory",
@@ -150,6 +174,9 @@ const rooms: Room[] = [
     area: "conservatory",
     neighbors: ["ballroom", "cellar"],
     hue: "#3f6754",
+    board: { column: 13, row: 10, width: 4, height: 3 },
+    doorway: "p-14-13",
+    doorSide: "bottom",
   },
   {
     id: "cellar",
@@ -163,6 +190,9 @@ const rooms: Room[] = [
     area: "cellar",
     neighbors: ["conservatory", "hall", "kitchen"],
     hue: "#4e4041",
+    board: { column: 1, row: 11, width: 5, height: 4 },
+    doorway: "p-3-10",
+    doorSide: "top",
   },
   {
     id: "kitchen",
@@ -176,15 +206,314 @@ const rooms: Room[] = [
     area: "kitchen",
     neighbors: ["dining", "cellar"],
     hue: "#6a503b",
+    board: { column: 7, row: 11, width: 4, height: 4 },
+    doorway: "p-8-10",
+    doorSide: "top",
   },
 ];
 
-const detectives = [
+const evidenceVariants: Record<RoomId, EvidenceVariant[]> = {
+  observatory: [
+    {
+      kicker: "The storm seen backwards",
+      description:
+        "The telescope lens is wet on its western edge, although the rain is driving from the east.",
+      clue: "Reversed rain trace",
+      note: "The east casement was opened from inside shortly after 10:17, creating a false escape route.",
+    },
+    {
+      kicker: "A lens wiped too carefully",
+      description:
+        "A clean crescent cuts through the fogged telescope glass. The cloth used on it carries a thread of crimson velvet.",
+      clue: "Crimson lens thread",
+      note: "Someone used the observatory to watch the library window, then wiped away a fingerprint with Celia's missing dinner wrap.",
+    },
+    {
+      kicker: "Lightning caught on glass",
+      description:
+        "A photographic plate captured the east casement shut at 10:18, one minute after Edmund's watch stopped.",
+      clue: "Storm-plate exposure",
+      note: "The supposed escape through the observatory happened after the crime and was staged from inside the manor.",
+    },
+  ],
+  library: [
+    {
+      kicker: "A fire that should be cold",
+      description:
+        "A page still glows beneath the grate. Someone tried to burn one name and left the rest of the ledger untouched.",
+      clue: "Scorched ledger",
+      note: "Edmund traced £8,000 in missing estate funds to an account signed C. Harrow.",
+    },
+    {
+      kicker: "Pressure survives the flame",
+      description:
+        "The top ledger sheet is gone, but its transfer figures remain pressed into the page beneath it.",
+      clue: "Indented bank transfer",
+      note: "The recovered figures end beside the initials C.H. and match the exact amount missing from the estate account.",
+    },
+    {
+      kicker: "Wax beneath the writing desk",
+      description:
+        "A snapped black wax seal lies beside the library desk, still holding one gold fiber from a solicitor's document ribbon.",
+      clue: "Broken solicitor seal",
+      note: "The seal belonged to Celia's private account packet. Edmund had opened it before the silver letter opener was taken.",
+    },
+  ],
+  study: [
+    {
+      kicker: "A clock that contradicts",
+      description:
+        "Edmund's pocket watch is cracked beneath the writing desk, its hands fixed at the instant it struck marble.",
+      clue: "Stopped pocket watch",
+      note: "The watch stopped at 10:17. Celia claimed she heard Edmund alive at half past ten.",
+    },
+    {
+      kicker: "A voice cylinder falls silent",
+      description:
+        "The dictation machine ends mid-sentence as the west clock sounds its quarter-hour and two softer chimes.",
+      clue: "Interrupted dictation",
+      note: "Edmund was recording at 10:17 and named an urgent meeting with his solicitor before the cylinder stopped.",
+    },
+    {
+      kicker: "An appointment scraped away",
+      description:
+        "The evening diary has been rubbed nearly blank, but graphite dust reveals a 10:15 meeting marked C.H.",
+      clue: "Erased appointment",
+      note: "Celia's claim that she never met Edmund after dinner conflicts with his own appointment book.",
+    },
+  ],
+  ballroom: [
+    {
+      kicker: "Music with twelve witnesses",
+      description:
+        "The gramophone needle rests at the final groove while the guest book records a full audience.",
+      clue: "Finished waltz record",
+      note: "Mirelle was visible on the ballroom stage from 10:10 until the record ended at 10:24.",
+    },
+    {
+      kicker: "Applause written in ink",
+      description:
+        "Twelve guests signed the concert program beside the second waltz, each marking Mirelle's uninterrupted performance.",
+      clue: "Signed concert program",
+      note: "The signatures place Mirelle in the ballroom throughout the time Edmund died in the library.",
+    },
+    {
+      kicker: "The metronome never stopped",
+      description:
+        "A spring metronome clicked through the entire final movement while three guests watched Mirelle at the piano.",
+      clue: "Witnessed final movement",
+      note: "Mirelle's public performance gives her no route to the library before 10:24.",
+    },
+  ],
+  hall: [
+    {
+      kicker: "A quiet return upstairs",
+      description:
+        "One narrow, mud-dark print interrupts the polished marble beside the east staircase.",
+      clue: "Narrow evening-shoe print",
+      note: "The print is a narrow size seven. Elias Voss wears an eleven; Celia's dinner shoes are missing.",
+    },
+    {
+      kicker: "Wax catches a narrow heel",
+      description:
+        "A fresh heel mark cuts through spilled candle wax beside the library corridor, carrying one white petal.",
+      clue: "Camellia heel impression",
+      note: "The narrow heel matches Celia's shoes, while the white camellia links the return path to her dinner corsage.",
+    },
+    {
+      kicker: "A handprint on cold brass",
+      description:
+        "The stair rail holds a small polished handprint above a smear of silver-cleaning rouge.",
+      clue: "Rouge-marked handprint",
+      note: "The print is too small for Elias and carries the same silver rouge found on Celia's writing gloves.",
+    },
+  ],
+  dining: [
+    {
+      kicker: "A glass nobody drank",
+      description:
+        "Edmund's cordial remains untouched. A bitter scent comes from orange peel, not poison.",
+      clue: "Untouched cordial",
+      note: "The drink was staged to suggest poison. Edmund died before returning to the dining table.",
+    },
+    {
+      kicker: "A decanter still sealed",
+      description:
+        "The cordial decanter's paper seal is unbroken even though Celia warned the table that Edmund had been poisoned.",
+      clue: "Sealed cordial decanter",
+      note: "No poisoned drink was poured. Celia introduced that false explanation before anyone examined the glass.",
+    },
+    {
+      kicker: "Bitterness from the garnish",
+      description:
+        "The supposed poison crystal dissolves into harmless candied peel beneath the dining lamp.",
+      clue: "Harmless bitter crystal",
+      note: "The dining-room poison story was manufactured to pull attention away from the missing library blade.",
+    },
+  ],
+  conservatory: [
+    {
+      kicker: "Rain where no window broke",
+      description:
+        "A single white camellia lies in a trail of rainwater. The garden door was locked from inside.",
+      clue: "Rain-soaked camellia",
+      note: "Celia wore a white camellia at dinner. Its stem was cut moments before the storm.",
+    },
+    {
+      kicker: "A stem cut after dinner",
+      description:
+        "Fresh sap shines on the pruning shears beside an empty space in the white camellia bed.",
+      clue: "Freshly cut camellia",
+      note: "A servant remembers Celia replacing her crushed corsage shortly before she crossed toward the library.",
+    },
+    {
+      kicker: "Glasshouse grit on velvet",
+      description:
+        "Gold-flecked potting grit clings to a torn strip of crimson velvet beneath the conservatory bench.",
+      clue: "Velvet and glasshouse grit",
+      note: "The velvet matches Celia's wrap and traces her staged route from the conservatory back into the manor.",
+    },
+  ],
+  cellar: [
+    {
+      kicker: "A footprint too obvious",
+      description:
+        "A broad boot scrape ends beneath a sealed cask, surrounded by soil that never touched the garden path.",
+      clue: "Planted boot scrape",
+      note: "Someone copied Elias's size-eleven boot to manufacture an alibi against him.",
+    },
+    {
+      kicker: "A boot made from plaster",
+      description:
+        "White plaster crumbs line a broad footprint beneath the casks; the tread repeats too perfectly to be real.",
+      clue: "Cast boot impression",
+      note: "The false print was pressed from a mold of Elias's boot and planted after the cellar floor had dried.",
+    },
+    {
+      kicker: "Garden soil in the wrong cellar",
+      description:
+        "The dirt beside the cask contains conservatory perlite, not the heavy clay from Elias's garden path.",
+      clue: "Mismatched planted soil",
+      note: "The cellar trail came from an indoor planter and was arranged to implicate the groundskeeper.",
+    },
+  ],
+  kitchen: [
+    {
+      kicker: "Silver polish, freshly used",
+      description:
+        "A crimson wrapping cloth smells of metal polish. Its narrow fold fits a desk blade.",
+      clue: "Polishing cloth",
+      note: "The silver letter opener was wiped clean in the kitchen and returned to the library desk.",
+    },
+    {
+      kicker: "Rouge left in the basin",
+      description:
+        "A crescent of silver-cleaning rouge remains in the washbasin beside one strand of gold document ribbon.",
+      clue: "Silver rouge residue",
+      note: "The residue matches the library opener and the ribbon from Celia's opened account packet.",
+    },
+    {
+      kicker: "A servant remembers the request",
+      description:
+        "The kitchen order slate records silver polish delivered to C. Harrow at 10:05 and returned without its cloth.",
+      clue: "Polish delivery record",
+      note: "Celia had both the cleaning material and the opportunity to erase prints from the letter opener.",
+    },
+  ],
+};
+
+const caseVariations = [
+  {
+    title: "The Ashes in the Library",
+    subtitle: "A burned ledger, a silent blade, and a lie told before midnight.",
+  },
+  {
+    title: "The Solicitor's Midnight",
+    subtitle: "An erased appointment exposes the path between the accounts and the library.",
+  },
+  {
+    title: "The Camellia Account",
+    subtitle: "White petals and silver rouge mark a carefully staged return through Blackthorn.",
+  },
+] as const;
+
+const detectiveRoster = [
   { id: "you", name: "You", title: "The Lantern", initials: "YL", color: "#e3c878" },
   { id: "iris", name: "Iris Bell", title: "The Listener", initials: "IB", color: "#75b8c8" },
   { id: "theo", name: "Theo Wren", title: "The Archivist", initials: "TW", color: "#a98bd4" },
   { id: "nell", name: "Nell Fox", title: "The Skeptic", initials: "NF", color: "#d16d78" },
+  { id: "mara", name: "Mara Vale", title: "The Cartographer", initials: "MV", color: "#77b78b" },
+  { id: "gideon", name: "Gideon Pike", title: "The Locksmith", initials: "GP", color: "#d29a62" },
+  { id: "sable", name: "Sable Quinn", title: "The Shadow", initials: "SQ", color: "#8c9fca" },
+  { id: "rowan", name: "Rowan Chase", title: "The Analyst", initials: "RC", color: "#c47f9f" },
+  { id: "ophelia", name: "Ophelia Reed", title: "The Medium", initials: "OR", color: "#9b83c5" },
+  { id: "bram", name: "Bram Locke", title: "The Watchman", initials: "BL", color: "#a7a167" },
 ] as const;
+
+type Detective = (typeof detectiveRoster)[number];
+
+const initialDetectives = detectiveRoster.slice(0, 4);
+
+function drawDetectives() {
+  const companions = [...detectiveRoster.slice(1)];
+  for (let index = companions.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [companions[index], companions[swapIndex]] = [companions[swapIndex], companions[index]];
+  }
+  return [detectiveRoster[0], ...companions.slice(0, 3)];
+}
+
+const coordinateKey = (column: number, row: number) => `p-${column}-${row}`;
+
+const corridorCoordinates = (() => {
+  const coordinates: Array<[number, number]> = [];
+  for (let column = 1; column <= 16; column += 1) {
+    coordinates.push([column, 4], [column, 9]);
+  }
+  for (let row = 1; row <= 10; row += 1) coordinates.push([5, row]);
+  for (let row = 1; row <= 14; row += 1) {
+    coordinates.push([11, row], [12, row]);
+  }
+  for (let column = 11; column <= 16; column += 1) coordinates.push([column, 13]);
+  coordinates.push([14, 8], [3, 10], [8, 10]);
+
+  return Array.from(
+    new Map(
+      coordinates.map(([column, row]) => [
+        coordinateKey(column, row),
+        { id: coordinateKey(column, row), column, row },
+      ]),
+    ).values(),
+  );
+})();
+
+const boardGraph = (() => {
+  const graph: Record<BoardNodeId, BoardNodeId[]> = {};
+  const corridorIds = new Set(corridorCoordinates.map((space) => space.id));
+  for (const space of corridorCoordinates) {
+    graph[space.id] = [
+      coordinateKey(space.column - 1, space.row),
+      coordinateKey(space.column + 1, space.row),
+      coordinateKey(space.column, space.row - 1),
+      coordinateKey(space.column, space.row + 1),
+    ].filter((id) => corridorIds.has(id));
+  }
+  for (const room of rooms) {
+    graph[room.id] = [room.doorway];
+    graph[room.doorway] = [...(graph[room.doorway] ?? []), room.id];
+  }
+  return graph;
+})();
+
+function placeDetectives(
+  lineup: ReadonlyArray<Detective>,
+) {
+  const startingRooms: RoomId[] = ["observatory", "kitchen", "conservatory"];
+  return lineup.reduce<Record<string, BoardNodeId>>((positions, detective, index) => {
+    positions[detective.id] = index === 0 ? "hall" : startingRooms[index - 1];
+    return positions;
+  }, {});
+}
 
 const manorEvents = [
   {
@@ -326,71 +655,14 @@ function playChime(enabled: boolean, success = false) {
 
 function playDiceRoll(enabled: boolean, reducedMotion: boolean) {
   if (!enabled || typeof window === "undefined") return;
-  const AudioContextClass =
-    window.AudioContext ||
-    (window as typeof window & { webkitAudioContext?: typeof AudioContext })
-      .webkitAudioContext;
-  if (!AudioContextClass) return;
-
-  const ctx = new AudioContextClass();
-  const now = ctx.currentTime;
-  const duration = reducedMotion ? 0.28 : 0.76;
-  const master = ctx.createGain();
-  master.gain.setValueAtTime(0.34, now);
-  master.gain.exponentialRampToValueAtTime(0.0001, now + duration + 0.16);
-  master.connect(ctx.destination);
-
-  const noiseBuffer = ctx.createBuffer(
-    1,
-    Math.ceil(ctx.sampleRate * (duration + 0.08)),
-    ctx.sampleRate,
+  const audio = new Audio(
+    new URL("./audio/dice-roll-wood.mp3", document.baseURI).toString(),
   );
-  const noise = noiseBuffer.getChannelData(0);
-  for (let index = 0; index < noise.length; index += 1) {
-    const time = index / ctx.sampleRate;
-    const pulse = Math.pow(Math.max(0, Math.sin(time * 49)), 8);
-    const decay = Math.max(0, 1 - time / (duration + 0.08));
-    noise[index] = (Math.random() * 2 - 1) * pulse * decay;
-  }
-
-  const rattle = ctx.createBufferSource();
-  const rattleFilter = ctx.createBiquadFilter();
-  const rattleGain = ctx.createGain();
-  rattle.buffer = noiseBuffer;
-  rattleFilter.type = "bandpass";
-  rattleFilter.frequency.setValueAtTime(1450, now);
-  rattleFilter.Q.setValueAtTime(0.7, now);
-  rattleGain.gain.setValueAtTime(0.0001, now);
-  rattleGain.gain.exponentialRampToValueAtTime(0.42, now + 0.018);
-  rattleGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-  rattle.connect(rattleFilter);
-  rattleFilter.connect(rattleGain);
-  rattleGain.connect(master);
-  rattle.start(now);
-  rattle.stop(now + duration + 0.08);
-
-  const impacts = reducedMotion
-    ? [0.03, 0.13, 0.23]
-    : [0.02, 0.11, 0.2, 0.31, 0.43, 0.56, 0.7];
-  impacts.forEach((offset, index) => {
-    const knock = ctx.createOscillator();
-    const knockGain = ctx.createGain();
-    knock.type = index % 2 === 0 ? "triangle" : "square";
-    knock.frequency.setValueAtTime(205 - index * 15, now + offset);
-    knock.frequency.exponentialRampToValueAtTime(72, now + offset + 0.045);
-    knockGain.gain.setValueAtTime(0.0001, now + offset);
-    knockGain.gain.exponentialRampToValueAtTime(
-      index === impacts.length - 1 ? 0.36 : 0.19,
-      now + offset + 0.004,
-    );
-    knockGain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.065);
-    knock.connect(knockGain);
-    knockGain.connect(master);
-    knock.start(now + offset);
-    knock.stop(now + offset + 0.075);
+  audio.volume = 0.82;
+  audio.playbackRate = reducedMotion ? 1.2 : 1;
+  void audio.play().catch(() => {
+    // Browsers can reject audio before a user gesture; the roll still completes.
   });
-
-  window.setTimeout(() => void ctx.close(), (duration + 0.3) * 1000);
 }
 
 function readPreference(key: string, fallback: boolean) {
@@ -426,30 +698,38 @@ export default function Home() {
   const [selectedLocation, setSelectedLocation] = useState("");
   const [selectedMotive, setSelectedMotive] = useState("");
   const [wrongTheory, setWrongTheory] = useState(false);
+  const [caseVariant, setCaseVariant] = useState(0);
+  const [detectives, setDetectives] = useState<Detective[]>([...initialDetectives]);
   const [round, setRound] = useState(1);
   const [diceValue, setDiceValue] = useState<number | null>(null);
   const [diceFace, setDiceFace] = useState(6);
   const [diceRolling, setDiceRolling] = useState(false);
   const [movesLeft, setMovesLeft] = useState(0);
-  const [pathThisTurn, setPathThisTurn] = useState<RoomId[]>(["hall"]);
+  const [pathThisTurn, setPathThisTurn] = useState<BoardNodeId[]>(["hall"]);
   const [searchedThisTurn, setSearchedThisTurn] = useState(false);
   const [eventIndex, setEventIndex] = useState<number | null>(null);
   const [boardNotice, setBoardNotice] = useState(
-    "Roll the brass die, then choose a glowing doorway.",
+    "Roll the brass die, then walk the glowing marble spaces into a room.",
   );
-  const [pawnRooms, setPawnRooms] = useState<Record<string, RoomId>>({
-    you: "hall",
-    iris: "observatory",
-    theo: "kitchen",
-    nell: "conservatory",
-  });
+  const [pawnPositions, setPawnPositions] = useState<Record<string, BoardNodeId>>(
+    placeDetectives(initialDetectives),
+  );
 
   const evidenceCount = investigated.length;
   const canAccuse = evidenceCount >= 4;
-  const activeRoomData = rooms.find((room) => room.id === activeRoom);
-  const currentRoom =
-    rooms.find((room) => room.id === pawnRooms.you) ?? rooms[4];
-  const reachableRooms = currentRoom.neighbors;
+  const currentCase = caseVariations[caseVariant];
+  const caseRooms = useMemo(
+    () =>
+      rooms.map((room) => ({
+        ...room,
+        ...evidenceVariants[room.id][caseVariant],
+      })),
+    [caseVariant],
+  );
+  const activeRoomData = caseRooms.find((room) => room.id === activeRoom);
+  const currentRoom = caseRooms.find((room) => room.id === pawnPositions.you);
+  const currentLocationName = currentRoom?.name ?? "Manor corridor";
+  const reachableNodes = boardGraph[pawnPositions.you] ?? [];
   const hasRolled = diceValue !== null;
   const turnPhase: TurnPhase = diceRolling
     ? "roll"
@@ -457,7 +737,7 @@ export default function Home() {
       ? "roll"
       : movesLeft > 0 && !searchedThisTurn
         ? "move"
-        : !searchedThisTurn
+        : currentRoom && !searchedThisTurn
           ? "search"
           : "end";
   const turnPhaseIndex = turnPhases.findIndex((phase) => phase.id === turnPhase);
@@ -472,8 +752,8 @@ export default function Home() {
   }, [soundOn, largeText, reducedMotion, captionsOn]);
 
   const clueProgress = useMemo(
-    () => rooms.map((room) => investigated.includes(room.id)),
-    [investigated],
+    () => caseRooms.map((room) => investigated.includes(room.id)),
+    [caseRooms, investigated],
   );
 
   const moveTo = (next: Scene) => {
@@ -496,8 +776,8 @@ export default function Home() {
     const faceSequence = [2, 5, 3, 6, 1, 4, value];
     setDiceRolling(true);
     setEventIndex(null);
-    setPathThisTurn([pawnRooms.you]);
-    setBoardNotice("The die tumbles across the velvet...");
+    setPathThisTurn([pawnPositions.you]);
+    setBoardNotice("The wooden die tumbles across the velvet-lined tray...");
     playDiceRoll(soundOn, reducedMotion);
 
     faceSequence.forEach((face, index) => {
@@ -513,28 +793,31 @@ export default function Home() {
       setDiceRolling(false);
       setBoardNotice(
         value === 1
-          ? "You rolled 1. Choose one glowing corridor."
-          : `You rolled ${value}. Move through up to ${value} connected corridors.`,
+          ? "You rolled 1. Walk to one glowing marble space."
+          : `You rolled ${value}. Walk through up to ${value} connected spaces and enter a room.`,
       );
     }, rollDuration);
   };
 
-  const movePawn = (room: Room) => {
-    if (!hasRolled || movesLeft < 1 || !reachableRooms.includes(room.id)) return;
-    setPawnRooms((current) => ({ ...current, you: room.id }));
-    setPathThisTurn((current) => [...current, room.id]);
+  const movePawn = (nodeId: BoardNodeId) => {
+    if (!hasRolled || movesLeft < 1 || !reachableNodes.includes(nodeId)) return;
+    const enteredRoom = caseRooms.find((room) => room.id === nodeId);
+    setPawnPositions((current) => ({ ...current, you: nodeId }));
+    setPathThisTurn((current) => [...current, nodeId]);
     setMovesLeft((current) => current - 1);
     setSearchedThisTurn(false);
     setBoardNotice(
-      investigated.includes(room.id)
-        ? `${room.name} has already yielded its strongest clue.`
-        : `You entered the ${room.name}. Search it, or keep moving.`,
+      enteredRoom
+        ? investigated.includes(enteredRoom.id)
+          ? `You walked into the ${enteredRoom.name}. Its strongest clue is already secured.`
+          : `You walked into the ${enteredRoom.name}. Search it now, or leave through the doorway.`
+        : "Your pawn advances across the marble corridor. Choose the next glowing space.",
     );
     playChime(soundOn);
   };
 
   const searchCurrentRoom = () => {
-    if (!hasRolled || searchedThisTurn) return;
+    if (!hasRolled || searchedThisTurn || !currentRoom) return;
     setSearchedThisTurn(true);
     setMovesLeft(0);
     inspectRoom(currentRoom);
@@ -544,13 +827,12 @@ export default function Home() {
   const endBoardTurn = () => {
     const nextEvent = Math.floor(Math.random() * manorEvents.length);
     setEventIndex(nextEvent);
-    setPawnRooms((current) => {
+    setPawnPositions((current) => {
       const next = { ...current };
       for (const detective of detectives.slice(1)) {
-        const room = rooms.find((item) => item.id === current[detective.id]);
-        const choices = room?.neighbors ?? ["hall"];
-        next[detective.id] =
-          choices[Math.floor(Math.random() * choices.length)] ?? "hall";
+        const currentNode = current[detective.id] ?? "hall";
+        const choices = boardGraph[currentNode] ?? ["hall"];
+        next[detective.id] = choices[Math.floor(Math.random() * choices.length)] ?? "hall";
       }
       return next;
     });
@@ -558,13 +840,17 @@ export default function Home() {
     setDiceValue(null);
     setDiceFace(6);
     setMovesLeft(0);
-    setPathThisTurn([pawnRooms.you]);
+    setPathThisTurn([pawnPositions.you]);
     setSearchedThisTurn(false);
     setBoardNotice("The other detectives have moved. Your turn begins again.");
     playChime(soundOn);
   };
 
   const restartBoard = () => {
+    const nextVariant = (caseVariant + 1 + Math.floor(Math.random() * 2)) % caseVariations.length;
+    const nextDetectives = drawDetectives();
+    setCaseVariant(nextVariant);
+    setDetectives(nextDetectives);
     setRound(1);
     setDiceValue(null);
     setDiceFace(6);
@@ -573,13 +859,18 @@ export default function Home() {
     setSearchedThisTurn(false);
     setEventIndex(null);
     setInvestigated([]);
-    setPawnRooms({
-      you: "hall",
-      iris: "observatory",
-      theo: "kitchen",
-      nell: "conservatory",
-    });
-    setBoardNotice("Roll the brass die, then choose a glowing doorway.");
+    setActiveRoom(null);
+    setNotebookOpen(false);
+    setAccusationOpen(false);
+    setSelectedSuspect("");
+    setSelectedMethod("");
+    setSelectedLocation("");
+    setSelectedMotive("");
+    setWrongTheory(false);
+    setPawnPositions(placeDetectives(nextDetectives));
+    setBoardNotice(
+      "A new case, detective table, and evidence trail are ready. Roll to leave the Grand Hall.",
+    );
     playChime(soundOn);
   };
 
@@ -825,22 +1116,26 @@ export default function Home() {
         <section className="case-scene scene" aria-labelledby="case-title">
           <div className="tabletop-header">
             <div>
-              <p className="eyebrow">Blackthorn table · Case 001</p>
-              <h2 id="case-title">The Ashes in the Library</h2>
-              <p>
-                Roll, move room to room, and search before the Veil track reaches
-                midnight. The other detectives are watching the same board.
+              <p className="eyebrow">
+                Blackthorn table · Case {String(caseVariant + 1).padStart(3, "0")}
               </p>
+              <h2 id="case-title">{currentCase.title}</h2>
+              <p>{currentCase.subtitle}</p>
             </div>
             <div className="tabletop-header-actions">
-              <button className="icon-button" onClick={restartBoard} aria-label="Restart board">
+              <button
+                className="icon-button"
+                onClick={restartBoard}
+                aria-label="Start a new case with a new cast and clues"
+                title="New case, cast, and clues"
+              >
                 <Shuffle size={18} />
               </button>
               <button className="notebook-button" onClick={() => setNotebookOpen(true)}>
                 <BookOpen size={18} />
                 <span>
                   Notebook
-                  <small>{evidenceCount} of {rooms.length} clues</small>
+                  <small>{evidenceCount} of {caseRooms.length} clues</small>
                 </span>
               </button>
             </div>
@@ -901,10 +1196,10 @@ export default function Home() {
               <div className="evidence-meter">
                 <div>
                   <span>Shared evidence</span>
-                  <strong>{evidenceCount}/{rooms.length}</strong>
+                  <strong>{evidenceCount}/{caseRooms.length}</strong>
                 </div>
                 <div className="progress-track">
-                  <span style={{ width: `${(evidenceCount / rooms.length) * 100}%` }} />
+                  <span style={{ width: `${(evidenceCount / caseRooms.length) * 100}%` }} />
                 </div>
                 <small>{canAccuse ? "A complete theory is now possible." : "Find four clues to unlock accusations."}</small>
               </div>
@@ -912,51 +1207,88 @@ export default function Home() {
 
             <div className="manor-board-wrap">
               <div className="board-ribbon">
-                <span><CircleDot size={14} /> Your pawn is in the {currentRoom.name}</span>
+                <span><CircleDot size={14} /> Your pawn is in the {currentLocationName}</span>
                 <strong>{movesLeft > 0 ? `${movesLeft} moves left` : hasRolled ? "Choose an action" : "Awaiting roll"}</strong>
               </div>
               <div className="manor-board" aria-label="Interactive Blackthorn Manor board">
-                <div className="board-fold vertical" aria-hidden="true" />
-                <div className="board-fold horizontal" aria-hidden="true" />
-                <div className="corridor-network" aria-hidden="true">
-                  <i className="corridor horizontal row-one" />
-                  <i className="corridor horizontal row-two" />
-                  <i className="corridor horizontal row-three" />
-                  <i className="corridor vertical column-one" />
-                  <i className="corridor vertical column-two" />
-                  <i className="corridor vertical column-three" />
-                </div>
-                <div className="board-center-seal" aria-hidden="true">
-                  <Eye size={22} />
-                </div>
-                {rooms.map((room, roomIndex) => {
+                <div className="board-atmosphere" aria-hidden="true" />
+                {corridorCoordinates.map((space, spaceIndex) => {
+                  const occupied = detectives.filter(
+                    (detective) => pawnPositions[detective.id] === space.id,
+                  );
+                  const pathStep = pathThisTurn.lastIndexOf(space.id);
+                  const reachable =
+                    hasRolled && movesLeft > 0 && reachableNodes.includes(space.id);
+                  const current = pawnPositions.you === space.id;
+                  return (
+                    <button
+                      key={space.id}
+                      className={`floor-space ${reachable ? "reachable" : ""} ${
+                        current ? "current" : ""
+                      } ${pathStep >= 0 ? "turn-path" : ""}`}
+                      style={{
+                        gridColumn: space.column,
+                        gridRow: space.row,
+                      }}
+                      onClick={() => movePawn(space.id)}
+                      disabled={!reachable}
+                      aria-label={`Marble hallway space ${spaceIndex + 1}${
+                        current ? ", your current position" : ""
+                      }${reachable ? ", reachable" : ""}`}
+                    >
+                      <span className="floor-inlay" aria-hidden="true" />
+                      <span className="pawn-cluster" aria-hidden="true">
+                        {occupied.map((detective) => (
+                          <i
+                            key={detective.id}
+                            title={detective.name}
+                            style={{ "--player-color": detective.color } as CSSProperties}
+                          >
+                            <span className="pawn-head" />
+                            <span className="pawn-body" />
+                            <b>{detective.initials.slice(0, 1)}</b>
+                          </i>
+                        ))}
+                      </span>
+                      {pathStep > 0 && (
+                        <span className="path-step" aria-hidden="true">{pathStep}</span>
+                      )}
+                    </button>
+                  );
+                })}
+                {caseRooms.map((room, roomIndex) => {
                   const Icon = room.icon;
                   const found = investigated.includes(room.id);
                   const occupied = detectives.filter(
-                    (detective) => pawnRooms[detective.id] === room.id,
+                    (detective) => pawnPositions[detective.id] === room.id,
                   );
                   const pathStep = pathThisTurn.lastIndexOf(room.id);
                   const reachable =
-                    hasRolled && movesLeft > 0 && reachableRooms.includes(room.id);
-                  const current = pawnRooms.you === room.id;
+                    hasRolled && movesLeft > 0 && reachableNodes.includes(room.id);
+                  const current = pawnPositions.you === room.id;
                   return (
                     <button
                       key={room.id}
-                      className={`board-room ${found ? "discovered" : ""} ${
+                      className={`floor-room room-${room.id} ${found ? "discovered" : ""} ${
                         reachable ? "reachable" : ""
                       } ${current ? "current" : ""} ${
                         pathStep >= 0 ? "turn-path" : ""
                       }`}
                       style={{
-                        gridArea: room.area,
+                        gridColumn: `${room.board.column} / span ${room.board.width}`,
+                        gridRow: `${room.board.row} / span ${room.board.height}`,
                         "--room-hue": room.hue,
                       } as CSSProperties}
-                      onClick={() => movePawn(room)}
+                      onClick={() => movePawn(room.id)}
                       disabled={!reachable}
                       aria-label={`${room.name}${current ? ", your current room" : ""}${
-                        reachable ? ", reachable" : ""
+                        reachable ? ", enter room" : ""
                       }`}
                     >
+                      <span className={`room-door ${room.doorSide}`} aria-hidden="true" />
+                      <span className={`room-furniture furniture-${room.id}`} aria-hidden="true">
+                        <i /><i /><i />
+                      </span>
                       <span className="room-tile-number" aria-hidden="true">
                         {String(roomIndex + 1).padStart(2, "0")}
                       </span>
@@ -965,7 +1297,7 @@ export default function Home() {
                       </span>
                       <span className="board-room-copy">
                         <strong>{room.name}</strong>
-                        <small>{found ? room.clue : current ? "Search available" : "Unsearched"}</small>
+                        <small>{found ? room.clue : current ? "Search this room" : "Enter through the door"}</small>
                       </span>
                       {found && <Check className="clue-check" size={14} />}
                       <span className="pawn-cluster" aria-hidden="true">
@@ -986,7 +1318,7 @@ export default function Home() {
                           {pathStep}
                         </span>
                       )}
-                      {reachable && <span className="doorway-pulse" />}
+                      {reachable && <span className="doorway-pulse" aria-hidden="true" />}
                     </button>
                   );
                 })}
@@ -997,7 +1329,8 @@ export default function Home() {
               </p>
               <div className="board-key" aria-label="Board key">
                 <span><i className="key-pawn" /> Detective pawn</span>
-                <span><i className="key-door" /> Open corridor</span>
+                <span><i className="key-door" /> Walkable marble space</span>
+                <span><i className="key-room" /> Enterable room</span>
                 <span><i className="key-clue"><Check size={9} /></i> Clue secured</span>
               </div>
             </div>
@@ -1031,19 +1364,19 @@ export default function Home() {
                       ? `${diceValue} corridor${diceValue === 1 ? "" : "s"}`
                       : "Tap the die"}
                 </strong>
-                <small>{soundOn ? "Rattle and landing sound on" : "Sound is muted"}</small>
+                <small>{soundOn ? "Recorded wooden-table roll on" : "Sound is muted"}</small>
               </div>
 
               <div className="turn-actions">
                 <button
                   className="table-action search-action"
                   onClick={searchCurrentRoom}
-                  disabled={!hasRolled || searchedThisTurn}
+                  disabled={!hasRolled || searchedThisTurn || !currentRoom}
                 >
                   <Search size={18} />
                   <span>
                     <strong>Search room</strong>
-                    <small>{currentRoom.name}</small>
+                    <small>{currentRoom?.name ?? "Enter a room first"}</small>
                   </span>
                 </button>
                 <button
@@ -1110,7 +1443,9 @@ export default function Home() {
             <span />
             <Check size={42} strokeWidth={1.2} />
           </div>
-          <p className="eyebrow">Case 001 · Truth established</p>
+          <p className="eyebrow">
+            Case {String(caseVariant + 1).padStart(3, "0")} · Truth established
+          </p>
           <h2 id="verdict-title">The veil is lifted.</h2>
           <p className="verdict-lead">
             Celia Harrow killed Edmund in the library with the silver letter
@@ -1172,7 +1507,7 @@ export default function Home() {
                 const Icon = activeRoomData.icon;
                 return <Icon size={58} strokeWidth={1.05} />;
               })()}
-              <span>Evidence {String(rooms.findIndex((room) => room.id === activeRoom) + 1).padStart(2, "0")}</span>
+              <span>Evidence {String(caseRooms.findIndex((room) => room.id === activeRoom) + 1).padStart(2, "0")}</span>
             </div>
             <div className="evidence-copy">
               <p className="eyebrow">{activeRoomData.name}</p>
@@ -1223,7 +1558,7 @@ export default function Home() {
               <span>Suspects</span>
             </div>
             <div className="notebook-entries">
-              {rooms.map((room, index) => (
+              {caseRooms.map((room, index) => (
                 <article className={clueProgress[index] ? "found" : ""} key={room.id}>
                   <div>{clueProgress[index] ? <Check size={15} /> : <LockKeyhole size={15} />}</div>
                   <span>

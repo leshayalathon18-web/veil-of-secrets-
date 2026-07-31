@@ -72,15 +72,26 @@ test("keeps the full tabletop case and accessibility controls in source", async 
 
   assert.match(page, /const rollDice/);
   assert.match(page, /function playDiceRoll/);
-  assert.match(page, /createBuffer\(/);
+  assert.match(page, /dice-roll-wood\.mp3/);
+  assert.match(page, /new Audio\(/);
   assert.match(page, /Math\.floor\(Math\.random\(\) \* 6\) \+ 1/);
   assert.match(page, /dicePips/);
+  assert.match(page, /corridorCoordinates/);
+  assert.match(page, /boardGraph/);
+  assert.match(page, /evidenceVariants/);
+  assert.match(page, /caseVariations/);
+  assert.match(page, /detectiveRoster/);
+  assert.match(page, /drawDetectives/);
+  assert.match(page, /Mara Vale/);
+  assert.match(page, /Bram Locke/);
   assert.match(page, /const movePawn/);
   assert.match(page, /const searchCurrentRoom/);
   assert.match(page, /const endBoardTurn/);
   assert.match(page, /Interactive Blackthorn Manor board/);
   assert.match(page, /turn-phase-rail/);
-  assert.match(page, /corridor-network/);
+  assert.match(page, /floor-space/);
+  assert.match(page, /floor-room/);
+  assert.match(page, /room-furniture/);
   assert.match(page, /pawn-head/);
   assert.match(page, /Movement tray/);
   assert.match(page, /manorEvents/);
@@ -94,7 +105,10 @@ test("keeps the full tabletop case and accessibility controls in source", async 
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
   assert.match(css, /\.manor-board/);
   assert.match(css, /\.turn-phase-rail/);
-  assert.match(css, /\.corridor-network/);
+  assert.match(css, /\.floor-space/);
+  assert.match(css, /\.floor-room/);
+  assert.match(css, /\.room-door/);
+  assert.match(css, /\.room-furniture/);
   assert.match(css, /\.pawn-head/);
   assert.match(css, /\.dice-tray/);
   assert.match(css, /\.die-face i\.pip/);
@@ -102,4 +116,5 @@ test("keeps the full tabletop case and accessibility controls in source", async 
   assert.match(css, /@keyframes roll-die/);
   assert.match(packageJson, /"lucide-react"/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
+  await access(new URL("../public/audio/dice-roll-wood.mp3", import.meta.url));
 });
