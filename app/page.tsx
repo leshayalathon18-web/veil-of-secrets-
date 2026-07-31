@@ -2281,7 +2281,7 @@ export default function Home() {
     setScene(next);
   };
 
-  const returnToMainMenu = () => {
+  const returnToOpeningScene = () => {
     playChime(soundOn);
     setNotebookOpen(false);
     setSettingsOpen(false);
@@ -2289,7 +2289,8 @@ export default function Home() {
     setWrongTheory(false);
     setTutorialStarted(false);
     setTutorialComplete(false);
-    setScene("menu");
+    setOpeningDeparting(false);
+    setScene("opening");
     window.scrollTo({ top: 0, behavior: reducedMotion ? "auto" : "smooth" });
   };
 
@@ -2526,9 +2527,9 @@ export default function Home() {
           <button
             type="button"
             className="brand-lockup"
-            onClick={returnToMainMenu}
-            aria-label="Return to Veil of Secrets main menu"
-            title="Return to main menu"
+            onClick={returnToOpeningScene}
+            aria-label="Return to the Veil of Secrets opening scene"
+            title="Return to opening scene"
           >
             <span className="brand-mark" aria-hidden="true">
               <span
