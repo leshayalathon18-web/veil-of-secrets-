@@ -24,6 +24,12 @@ The gold V, crimson veil, and keyhole crest in
 Secrets with OpenAI image generation. It contains no third-party artwork or
 logos.
 
+The fifteen illustrated evidence cards in `public/evidence/` were created
+specifically for Veil of Secrets with OpenAI image generation. They depict
+original Blackthorn Manor evidence scenes and contain no third-party artwork,
+characters, or logos. The generation atlas is archived at
+`assets/generated/blackthorn-evidence-atlas.png`.
+
 The 90-second tutorial film in `public/tutorial/` is an original programmatic
 motion-graphics production made from the game's original character and brand
 art. The film contains no third-party footage.

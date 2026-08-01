@@ -78,6 +78,24 @@ type Room = {
 type EvidenceVariant = Pick<Room, "kicker" | "description" | "clue" | "note">;
 type BoardNodeId = string;
 
+const evidenceArtwork: Record<RoomId, string> = {
+  observatory: "/evidence/observatory.webp",
+  attic: "/evidence/attic.webp",
+  library: "/evidence/library.webp",
+  study: "/evidence/study.webp",
+  masterBedroom: "/evidence/master-bedroom.webp",
+  ballroom: "/evidence/ballroom.webp",
+  hall: "/evidence/grand-hall.webp",
+  guestSuite: "/evidence/guest-suite.webp",
+  dining: "/evidence/dining-hall.webp",
+  garden: "/evidence/moon-garden.webp",
+  conservatory: "/evidence/conservatory.webp",
+  cellar: "/evidence/wine-cellar.webp",
+  kitchen: "/evidence/kitchen.webp",
+  basement: "/evidence/basement.webp",
+  secretPassage: "/evidence/secret-passage.webp",
+};
+
 const rooms: Room[] = [
   {
     id: "observatory",
@@ -1406,6 +1424,37 @@ type NetworkStatus =
   | "connected"
   | "reconnecting"
   | "error";
+type CouncilStage = "intel" | "vote" | "outcome";
+type CouncilStance = "reveal" | "withhold" | "bluff";
+type CouncilCategory = "suspect" | "location" | "timeline";
+type CouncilLead = {
+  id: string;
+  category: CouncilCategory;
+  label: string;
+  detail: string;
+  isCorrect: boolean;
+};
+type CouncilLock = {
+  round: number;
+  category: CouncilCategory;
+  label: string;
+  correct: boolean;
+};
+type CouncilSnapshot = {
+  open: boolean;
+  stage: CouncilStage;
+  round: number;
+  seconds: number;
+  stance: CouncilStance | null;
+  category: CouncilCategory;
+  selectedLeadId: string;
+  outcome: string;
+  locks: CouncilLock[];
+  trust: number;
+  rollModifier: number;
+  abilityUsedIds: string[];
+  abilityHint: string;
+};
 type GameSnapshot = {
   scene: Scene;
   caseVariant: number;
@@ -1422,6 +1471,7 @@ type GameSnapshot = {
   investigated: RoomId[];
   activePlayerId: string;
   moveHistory: string[];
+  council?: CouncilSnapshot;
 };
 
 type NetworkMessage =
@@ -1582,6 +1632,73 @@ const manorEvents = [
     text: "Advance the Veil track. At midnight, every detective must seal a theory.",
   },
 ];
+
+const councilStances: Array<{
+  id: CouncilStance;
+  title: string;
+  detail: string;
+  risk: string;
+}> = [
+  {
+    id: "reveal",
+    title: "Reveal honestly",
+    detail: "Place your private observation on the shared table.",
+    risk: "Builds trust, but teaches rivals what you know.",
+  },
+  {
+    id: "withhold",
+    title: "Hold it close",
+    detail: "Keep the detail private until the final accusation.",
+    risk: "Protects your theory, but earns no table trust.",
+  },
+  {
+    id: "bluff",
+    title: "Seed a doubt",
+    detail: "Offer a plausible distortion and watch who follows it.",
+    risk: "A useful trap—unless the table catches you.",
+  },
+];
+
+const councilCategoryCopy: Record<
+  CouncilCategory,
+  { label: string; instruction: string }
+> = {
+  suspect: {
+    label: "Suspect",
+    instruction: "Whose movements deserve the table's full attention?",
+  },
+  location: {
+    label: "Location",
+    instruction: "Where did the decisive act actually occur?",
+  },
+  timeline: {
+    label: "Timeline",
+    instruction: "Which moment is the hinge of the entire case?",
+  },
+};
+
+function getCouncilAbilityHint(detective: Detective, caseFile: CaseFile) {
+  const wrongSuspect =
+    caseFile.suspects.find((suspect) => suspect.id !== caseFile.solution.suspect)
+    ?? caseFile.suspects[0];
+  const wrongLocation =
+    caseFile.locations.find((location) => location !== caseFile.solution.location)
+    ?? caseFile.locations[0];
+  const criticalMoment = caseFile.timeline[1] ?? caseFile.timeline[0];
+  const hints: Record<string, string> = {
+    you: `A second look clears ${wrongLocation}. The decisive evidence was placed elsewhere.`,
+    iris: `The footfall pattern does not match ${wrongSuspect.name}. Someone else crossed the critical route.`,
+    theo: `The sealed register makes ${criticalMoment.time} the case's hinge: ${criticalMoment.text}`,
+    nell: `${wrongSuspect.name}'s most confident statement contains no physical contradiction. Challenge a different lead.`,
+    mara: `Two accounts intersect at ${caseFile.solution.location}; that location can survive cross-examination.`,
+    gideon: `The locked-object record rules out ${caseFile.methods.find((method) => method !== caseFile.solution.method) ?? caseFile.methods[0]}.`,
+    sable: `A concealed route reaches ${caseFile.solution.location} without crossing the public hall.`,
+    rowan: `The encoded margin repeats the language of this motive: ${caseFile.solution.motive}.`,
+    ophelia: `The natural trace could only have settled at ${caseFile.solution.location}.`,
+    bram: `The reconstructed sound begins at ${criticalMoment.time}; everything before it is preparation.`,
+  };
+  return hints[detective.id] ?? `${detective.talent} reveals that the table's current assumptions are incomplete.`;
+}
 
 const tutorialChapters = [
   {
@@ -1851,6 +1968,19 @@ export default function Home() {
   const [caseVariant, setCaseVariant] = useState(0);
   const [detectives, setDetectives] = useState<Detective[]>([...initialDetectives]);
   const [round, setRound] = useState(1);
+  const [councilOpen, setCouncilOpen] = useState(false);
+  const [councilStage, setCouncilStage] = useState<CouncilStage>("intel");
+  const [councilRound, setCouncilRound] = useState(0);
+  const [councilSeconds, setCouncilSeconds] = useState(45);
+  const [councilStance, setCouncilStance] = useState<CouncilStance | null>(null);
+  const [councilCategory, setCouncilCategory] = useState<CouncilCategory>("suspect");
+  const [selectedCouncilLeadId, setSelectedCouncilLeadId] = useState("");
+  const [councilOutcome, setCouncilOutcome] = useState("");
+  const [councilLocks, setCouncilLocks] = useState<CouncilLock[]>([]);
+  const [councilTrust, setCouncilTrust] = useState(3);
+  const [councilRollModifier, setCouncilRollModifier] = useState(0);
+  const [councilAbilityUsedIds, setCouncilAbilityUsedIds] = useState<string[]>([]);
+  const [councilAbilityHint, setCouncilAbilityHint] = useState("");
   const [diceValue, setDiceValue] = useState<number | null>(null);
   const [diceFace, setDiceFace] = useState(6);
   const [diceRolling, setDiceRolling] = useState(false);
@@ -1945,6 +2075,61 @@ export default function Home() {
     ?? detectives[0];
   const localDetectiveId =
     networkRole === "guest" ? detectives[1]?.id ?? "iris" : detectives[0]?.id ?? "you";
+  const councilDetective =
+    detectives.find((detective) => detective.id === localDetectiveId) ?? detectives[0];
+  const councilIntelRooms = caseRooms.filter((room) => currentCase.evidence[room.id]);
+  const councilIntelIndex = [...councilDetective.id].reduce(
+    (total, character) => total + character.charCodeAt(0),
+    councilRound || round,
+  ) % Math.max(councilIntelRooms.length, 1);
+  const councilIntelRoom = councilIntelRooms[councilIntelIndex] ?? caseRooms[0];
+  const councilLeads = useMemo<CouncilLead[]>(() => {
+    if (councilCategory === "suspect") {
+      return currentCase.suspects.map((suspect) => ({
+        id: `suspect-${suspect.id}`,
+        category: "suspect",
+        label: suspect.name,
+        detail: suspect.role,
+        isCorrect: suspect.id === currentCase.solution.suspect,
+      }));
+    }
+    if (councilCategory === "location") {
+      return currentCase.locations.map((location) => ({
+        id: `location-${location}`,
+        category: "location",
+        label: location,
+        detail: location === currentCase.solution.location
+          ? "Physical evidence converges here."
+          : "A plausible route remains unproven.",
+        isCorrect: location === currentCase.solution.location,
+      }));
+    }
+    return currentCase.timeline.map((moment, index) => ({
+      id: `timeline-${index}`,
+      category: "timeline",
+      label: moment.time,
+      detail: moment.text,
+      isCorrect: index === Math.min(1, currentCase.timeline.length - 1),
+    }));
+  }, [councilCategory, currentCase]);
+  const councilBotVotes = useMemo(() => {
+    const humanCount = friendConnected ? 2 : 1;
+    const voters = detectives.slice(humanCount);
+    return voters.map((detective, index) => {
+      const correctLead = councilLeads.find((lead) => lead.isCorrect) ?? councilLeads[0];
+      const dividedLead = councilLeads[
+        (detective.portraitIndex + councilRound + index) % Math.max(councilLeads.length, 1)
+      ];
+      const lead = (index + councilRound) % 3 === 0 ? dividedLead : correctLead;
+      return {
+        detective,
+        lead,
+        confidence: 58 + ((detective.portraitIndex * 7 + councilRound * 3) % 35),
+      };
+    });
+  }, [councilLeads, councilRound, detectives, friendConnected]);
+  const selectedCouncilLead =
+    councilLeads.find((lead) => lead.id === selectedCouncilLeadId) ?? null;
   const isLocalTurn =
     networkRole === "solo" || (friendConnected && activePlayerId === localDetectiveId);
   const currentPawnNode = pawnPositions[activePlayerId] ?? "hall";
@@ -1979,6 +2164,14 @@ export default function Home() {
       JSON.stringify({ soundOn, largeText, reducedMotion, captionsOn }),
     );
   }, [soundOn, largeText, reducedMotion, captionsOn]);
+
+  useEffect(() => {
+    if (!councilOpen || councilStage === "outcome" || councilSeconds <= 0) return;
+    const timer = window.setInterval(() => {
+      setCouncilSeconds((seconds) => Math.max(0, seconds - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [councilOpen, councilSeconds, councilStage]);
 
   useEffect(() => {
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
@@ -2156,6 +2349,21 @@ export default function Home() {
       investigated,
       activePlayerId,
       moveHistory,
+      council: {
+        open: councilOpen,
+        stage: councilStage,
+        round: councilRound,
+        seconds: councilSeconds,
+        stance: councilStance,
+        category: councilCategory,
+        selectedLeadId: selectedCouncilLeadId,
+        outcome: councilOutcome,
+        locks: councilLocks,
+        trust: councilTrust,
+        rollModifier: councilRollModifier,
+        abilityUsedIds: councilAbilityUsedIds,
+        abilityHint: councilAbilityHint,
+      },
     };
     snapshotRef.current = snapshot;
 
@@ -2182,6 +2390,19 @@ export default function Home() {
     investigated,
     activePlayerId,
     moveHistory,
+    councilOpen,
+    councilStage,
+    councilRound,
+    councilSeconds,
+    councilStance,
+    councilCategory,
+    selectedCouncilLeadId,
+    councilOutcome,
+    councilLocks,
+    councilTrust,
+    councilRollModifier,
+    councilAbilityUsedIds,
+    councilAbilityHint,
   ]);
 
   const clueProgress = useMemo(
@@ -2401,6 +2622,21 @@ export default function Home() {
     setInvestigated(snapshot.investigated);
     setActivePlayerId(snapshot.activePlayerId);
     setMoveHistory(snapshot.moveHistory);
+    if (snapshot.council) {
+      setCouncilOpen(snapshot.council.open);
+      setCouncilStage(snapshot.council.stage);
+      setCouncilRound(snapshot.council.round);
+      setCouncilSeconds(snapshot.council.seconds);
+      setCouncilStance(snapshot.council.stance);
+      setCouncilCategory(snapshot.council.category);
+      setSelectedCouncilLeadId(snapshot.council.selectedLeadId);
+      setCouncilOutcome(snapshot.council.outcome);
+      setCouncilLocks(snapshot.council.locks);
+      setCouncilTrust(snapshot.council.trust);
+      setCouncilRollModifier(snapshot.council.rollModifier);
+      setCouncilAbilityUsedIds(snapshot.council.abilityUsedIds);
+      setCouncilAbilityHint(snapshot.council.abilityHint);
+    }
   };
 
   const bindConnection = (connection: DataConnection, role: NetworkRole) => {
@@ -2766,9 +3002,86 @@ export default function Home() {
     }
   };
 
+  const beginMidnightCouncil = (meetingRound: number) => {
+    setNotebookOpen(false);
+    setAccusationOpen(false);
+    setActiveRoom(null);
+    setCouncilRound(meetingRound);
+    setCouncilStage("intel");
+    setCouncilSeconds(friendConnected ? 45 : 35);
+    setCouncilStance(null);
+    setCouncilCategory("suspect");
+    setSelectedCouncilLeadId("");
+    setCouncilOutcome("");
+    setCouncilAbilityHint("");
+    setCouncilOpen(true);
+    setBoardNotice(`The Midnight Council convenes for round ${meetingRound}. Private intelligence is now in play.`);
+    playChime(soundOn, true);
+  };
+
+  const continueCouncilToVote = () => {
+    if (!councilStance) return;
+    setCouncilStage("vote");
+    setCouncilSeconds(friendConnected ? 35 : 25);
+    setSelectedCouncilLeadId("");
+    playChime(soundOn);
+  };
+
+  const useCouncilAbility = () => {
+    if (councilAbilityUsedIds.includes(councilDetective.id)) return;
+    setCouncilAbilityUsedIds((used) => [...used, councilDetective.id]);
+    setCouncilAbilityHint(getCouncilAbilityHint(councilDetective, currentCase));
+    setCouncilTrust((trust) => Math.min(8, trust + 1));
+    playChime(soundOn, true);
+  };
+
+  const resolveCouncilLead = () => {
+    if (!selectedCouncilLead || !councilStance) return;
+    const correct = selectedCouncilLead.isCorrect;
+    const stanceAdjustment =
+      councilStance === "reveal" ? (correct ? 1 : -1) : councilStance === "bluff" ? -1 : 0;
+    const trustDelta = (correct ? 2 : -1) + stanceAdjustment;
+    const modifier = correct ? 1 : -1;
+    const outcome = correct
+      ? `${selectedCouncilLead.label} survives the table's scrutiny. The council grants +1 movement on the next roll.`
+      : `${selectedCouncilLead.label} collapses under contradiction. The manor claims 1 movement from the next roll.`;
+
+    setCouncilLocks((locks) => [
+      ...locks,
+      {
+        round: councilRound,
+        category: selectedCouncilLead.category,
+        label: selectedCouncilLead.label,
+        correct,
+      },
+    ]);
+    setCouncilTrust((trust) => Math.max(0, Math.min(8, trust + trustDelta)));
+    setCouncilRollModifier(modifier);
+    setCouncilOutcome(outcome);
+    setCouncilStage("outcome");
+    setCouncilSeconds(0);
+    setBoardNotice(outcome);
+    playChime(soundOn, correct);
+  };
+
+  const closeMidnightCouncil = () => {
+    setCouncilOpen(false);
+    setCouncilStage("intel");
+    setCouncilStance(null);
+    setSelectedCouncilLeadId("");
+    setCouncilAbilityHint("");
+    setBoardNotice(
+      councilRollModifier > 0
+        ? "The council's correct lock grants +1 movement on your next roll."
+        : "The council's false lock costs 1 movement on your next roll.",
+    );
+  };
+
   const rollDice = () => {
     if (diceRolling || hasRolled || botsMoving || !isLocalTurn) return;
-    const value = Math.floor(Math.random() * 6) + 1;
+    const naturalValue = Math.floor(Math.random() * 6) + 1;
+    const value = Math.max(1, Math.min(6, naturalValue + councilRollModifier));
+    const appliedCouncilModifier = councilRollModifier;
     const rollDuration = reducedMotion ? 280 : 760;
     const faceSequence = [2, 5, 3, 6, 1, 4, value];
     setDiceRolling(true);
@@ -2787,9 +3100,12 @@ export default function Home() {
       setDiceFace(value);
       setDiceValue(value);
       setMovesLeft(value);
+      setCouncilRollModifier(0);
       setDiceRolling(false);
       setBoardNotice(
-        value === 1
+        appliedCouncilModifier !== 0
+          ? `The die showed ${naturalValue}; the council ${appliedCouncilModifier > 0 ? "added" : "removed"} 1 movement. ${activeDetective.name} may move ${value}.`
+          : value === 1
           ? `${activeDetective.name} rolled 1. Walk to one glowing marble space.`
           : `${activeDetective.name} rolled ${value}. Walk through up to ${value} connected spaces and enter a room.`,
       );
@@ -2835,6 +3151,7 @@ export default function Home() {
 
   const animateBotTurns = async () => {
     const nextEvent = Math.floor(Math.random() * manorEvents.length);
+    const nextRound = round + 1;
     setEventIndex(nextEvent);
     setBotsMoving(true);
     const humanCount = friendConnected ? 2 : 1;
@@ -2870,7 +3187,7 @@ export default function Home() {
       }
     }
     setMovingDetectiveId(null);
-    setRound((current) => current + 1);
+    setRound(nextRound);
     setDiceValue(null);
     setDiceFace(6);
     setMovesLeft(0);
@@ -2878,8 +3195,18 @@ export default function Home() {
     setPathThisTurn([nextPositions[detectives[0]?.id ?? "you"] ?? "hall"]);
     setSearchedThisTurn(false);
     setBotsMoving(false);
-    setBoardNotice("The manor bots have completed their visible moves. Avery's turn begins.");
+    setBoardNotice(
+      nextRound % 2 === 0
+        ? "The manor bots fall silent. The Midnight Council is assembling."
+        : "The manor bots have completed their visible moves. Avery's turn begins.",
+    );
     playChime(soundOn);
+    if (nextRound % 2 === 0 && nextRound <= 8) {
+      window.setTimeout(
+        () => beginMidnightCouncil(nextRound),
+        reducedMotion ? 80 : 520,
+      );
+    }
   };
 
   const endBoardTurn = () => {
@@ -2923,6 +3250,19 @@ export default function Home() {
     setSelectedLocation("");
     setSelectedMotive("");
     setWrongTheory(false);
+    setCouncilOpen(false);
+    setCouncilStage("intel");
+    setCouncilRound(0);
+    setCouncilSeconds(45);
+    setCouncilStance(null);
+    setCouncilCategory("suspect");
+    setSelectedCouncilLeadId("");
+    setCouncilOutcome("");
+    setCouncilLocks([]);
+    setCouncilTrust(3);
+    setCouncilRollModifier(0);
+    setCouncilAbilityUsedIds([]);
+    setCouncilAbilityHint("");
     setPawnPositions(placeDetectives(nextDetectives));
     setActivePlayerId(nextDetectives[0].id);
     setBotsMoving(false);
@@ -3918,6 +4258,41 @@ export default function Home() {
             <small>{round >= 8 ? "Midnight is here — seal a theory." : `${8 - round} rounds until midnight`}</small>
           </div>
 
+          <div className="council-docket" aria-label="Midnight Council status">
+            <div className="council-docket-seal" aria-hidden="true">
+              <Eye size={20} />
+              <span>{String(councilLocks.length).padStart(2, "0")}</span>
+            </div>
+            <div className="council-docket-copy">
+              <small>Midnight Council</small>
+              <strong>
+                {councilLocks.length > 0
+                  ? `${councilLocks.length} lead${councilLocks.length === 1 ? "" : "s"} locked`
+                  : "First council at Round 2"}
+              </strong>
+              <p>
+                {councilLocks.length > 0
+                  ? councilLocks.slice(-2).map((lead) => lead.label).join(" · ")
+                  : "Private intelligence, table debate, and a consequential vote."}
+              </p>
+            </div>
+            <div className="council-trust">
+              <span>Table trust</span>
+              <div aria-label={`${councilTrust} of 8 table trust`}>
+                {Array.from({ length: 8 }).map((_, index) => (
+                  <i key={index} className={index < councilTrust ? "filled" : ""} />
+                ))}
+              </div>
+              <small>
+                {councilRollModifier > 0
+                  ? "+1 movement banked"
+                  : councilRollModifier < 0
+                    ? "−1 movement pending"
+                    : `Next council: Round ${Math.min(8, round % 2 === 0 ? round + 2 : round + 1)}`}
+              </small>
+            </div>
+          </div>
+
           <ol className="turn-phase-rail" aria-label={`Turn phase: ${turnPhase}`}>
             {turnPhases.map((phase, index) => (
               <li
@@ -3973,6 +4348,19 @@ export default function Home() {
                     )}
                   </article>
                 ))}
+              </div>
+
+              <div className={`detective-talent-card ${councilAbilityUsedIds.includes(councilDetective.id) ? "spent" : ""}`}>
+                <Sparkles size={15} />
+                <span>
+                  <small>{councilDetective.name}&apos;s council gift</small>
+                  <strong>{councilDetective.talent}</strong>
+                  <p>
+                    {councilAbilityUsedIds.includes(councilDetective.id)
+                      ? "Gift spent for this case"
+                      : "Available during a Midnight Council"}
+                  </p>
+                </span>
               </div>
 
               <div className="movement-ledger">
@@ -4332,6 +4720,298 @@ export default function Home() {
         </section>
       )}
 
+      {councilOpen && (
+        <div className="modal-backdrop council-backdrop" role="presentation">
+          <section
+            className={`midnight-council council-stage-${councilStage}`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="council-title"
+          >
+            <div className="council-atmosphere" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </div>
+
+            <header className="council-header">
+              <div className="council-crest" aria-hidden="true">
+                <Eye size={24} />
+                <i />
+              </div>
+              <div>
+                <p className="eyebrow">Round {councilRound} · The house is listening</p>
+                <h3 id="council-title">The Midnight Council</h3>
+                <p>
+                  {councilStage === "intel"
+                    ? "Read your private intelligence. Then decide what the table deserves to hear."
+                    : councilStage === "vote"
+                      ? "Compare every voice, choose one lead, and bind the table to it."
+                      : "The locked lead changes what Blackthorn permits next."}
+                </p>
+              </div>
+              <div className={`council-clock ${councilSeconds <= 10 && councilStage !== "outcome" ? "urgent" : ""}`}>
+                <Clock3 size={17} />
+                <strong>{councilStage === "outcome" ? "LOCKED" : `00:${String(councilSeconds).padStart(2, "0")}`}</strong>
+                <small>{councilSeconds === 0 && councilStage !== "outcome" ? "Choose now" : "Council clock"}</small>
+              </div>
+            </header>
+
+            <div className="council-progress" aria-label={`Council step ${councilStage === "intel" ? 1 : councilStage === "vote" ? 2 : 3} of 3`}>
+              {[
+                ["intel", "Private intel"],
+                ["vote", "Table vote"],
+                ["outcome", "Consequence"],
+              ].map(([stage, label], index) => {
+                const currentIndex = councilStage === "intel" ? 0 : councilStage === "vote" ? 1 : 2;
+                return (
+                  <span key={stage} className={index <= currentIndex ? "active" : ""}>
+                    <i>{index < currentIndex ? <Check size={12} /> : index + 1}</i>
+                    {label}
+                  </span>
+                );
+              })}
+            </div>
+
+            {councilStage === "intel" && (
+              <div className="council-intel-layout">
+                <aside className="council-detective-file">
+                  <div
+                    className="council-detective-portrait"
+                    style={{
+                      ...portraitStyle(councilDetective.portraitIndex),
+                      "--player-color": councilDetective.color,
+                    } as CSSProperties}
+                    role="img"
+                    aria-label={`Portrait of ${councilDetective.name}`}
+                  />
+                  <p className="eyebrow">Your private role</p>
+                  <h4>{councilDetective.name}</h4>
+                  <span>{councilDetective.title}</span>
+                  <p>{councilDetective.bio}</p>
+                  <button
+                    type="button"
+                    className="council-ability-button"
+                    onClick={useCouncilAbility}
+                    disabled={councilAbilityUsedIds.includes(councilDetective.id)}
+                  >
+                    <Sparkles size={16} />
+                    <span>
+                      <strong>{councilDetective.talent}</strong>
+                      <small>
+                        {councilAbilityUsedIds.includes(councilDetective.id)
+                          ? "Already used this case"
+                          : "Use once · gain a verified insight"}
+                      </small>
+                    </span>
+                  </button>
+                </aside>
+
+                <div className="council-private-intel">
+                  <div className="private-intel-stamp">
+                    <LockKeyhole size={14} /> For your eyes only
+                  </div>
+                  <small>{councilIntelRoom.name} · Private observation</small>
+                  <h4>{councilIntelRoom.clue}</h4>
+                  <p>{councilIntelRoom.note}</p>
+                  <div className="intel-authenticity">
+                    <ShieldCheck size={16} />
+                    <span>
+                      <strong>Physically corroborated</strong>
+                      <small>This detail is true. Your presentation of it does not have to be.</small>
+                    </span>
+                  </div>
+                  {councilAbilityHint && (
+                    <div className="ability-revelation" role="status">
+                      <Sparkles size={17} />
+                      <span>
+                        <small>Talent revelation</small>
+                        <strong>{councilAbilityHint}</strong>
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="council-stance-panel">
+                  <div>
+                    <p className="eyebrow">Choose your posture</p>
+                    <h4>What will you tell the table?</h4>
+                  </div>
+                  <div className="council-stance-options">
+                    {councilStances.map((stance) => (
+                      <button
+                        type="button"
+                        key={stance.id}
+                        className={councilStance === stance.id ? "selected" : ""}
+                        aria-pressed={councilStance === stance.id}
+                        onClick={() => {
+                          setCouncilStance(stance.id);
+                          playChime(soundOn);
+                        }}
+                      >
+                        <i>{councilStance === stance.id ? <Check size={14} /> : <CircleDot size={14} />}</i>
+                        <span>
+                          <strong>{stance.title}</strong>
+                          <small>{stance.detail}</small>
+                          <em>{stance.risk}</em>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    className="primary-button council-next-button"
+                    disabled={!councilStance}
+                    onClick={continueCouncilToVote}
+                  >
+                    Address the table <ArrowRight size={17} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {councilStage === "vote" && (
+              <div className="council-vote-layout">
+                <div className="council-lead-panel">
+                  <div className="council-category-tabs" role="tablist" aria-label="Council lead category">
+                    {(["suspect", "location", "timeline"] as CouncilCategory[]).map((category) => (
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={councilCategory === category}
+                        className={councilCategory === category ? "active" : ""}
+                        key={category}
+                        onClick={() => {
+                          setCouncilCategory(category);
+                          setSelectedCouncilLeadId("");
+                          playChime(soundOn);
+                        }}
+                      >
+                        {councilCategoryCopy[category].label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="council-lead-heading">
+                    <p className="eyebrow">Lead under consideration</p>
+                    <h4>{councilCategoryCopy[councilCategory].instruction}</h4>
+                  </div>
+                  <div className="council-lead-options">
+                    {councilLeads.map((lead) => (
+                      <button
+                        type="button"
+                        key={lead.id}
+                        className={selectedCouncilLeadId === lead.id ? "selected" : ""}
+                        aria-pressed={selectedCouncilLeadId === lead.id}
+                        onClick={() => {
+                          setSelectedCouncilLeadId(lead.id);
+                          playChime(soundOn);
+                        }}
+                      >
+                        <i>{selectedCouncilLeadId === lead.id ? <Check size={14} /> : <CircleDot size={14} />}</i>
+                        <span>
+                          <strong>{lead.label}</strong>
+                          <small>{lead.detail}</small>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <aside className="council-table-voices">
+                  <div className="council-voices-heading">
+                    <UsersRound size={17} />
+                    <span>
+                      <small>Live table</small>
+                      <strong>{friendConnected ? "Your friend and the manor bots" : "The manor bots deliberate"}</strong>
+                    </span>
+                  </div>
+                  <div className="council-voice-list">
+                    {friendConnected && (
+                      <article className="friend-vote waiting">
+                        <div className="vote-monogram">F</div>
+                        <span>
+                          <strong>{friendName}</strong>
+                          <small>Discussing over table voice</small>
+                        </span>
+                        <i>LIVE</i>
+                      </article>
+                    )}
+                    {councilBotVotes.map(({ detective, lead, confidence }) => (
+                      <article key={detective.id}>
+                        <div
+                          className="vote-portrait"
+                          style={portraitStyle(detective.portraitIndex)}
+                          role="img"
+                          aria-label={detective.name}
+                        />
+                        <span>
+                          <strong>{detective.name}</strong>
+                          <small>“I would lock {lead.label}.”</small>
+                        </span>
+                        <i>{confidence}%</i>
+                      </article>
+                    ))}
+                  </div>
+                  <div className="council-vote-summary">
+                    <small>Your posture</small>
+                    <strong>{councilStances.find((stance) => stance.id === councilStance)?.title}</strong>
+                    <p>
+                      {councilStance === "reveal"
+                        ? `You placed the ${councilIntelRoom.clue} before the table.`
+                        : councilStance === "withhold"
+                          ? "Your private observation remains hidden."
+                          : "You seeded a deliberate doubt. If exposed, trust will fall."}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="primary-button council-lock-button"
+                    disabled={!selectedCouncilLead}
+                    onClick={resolveCouncilLead}
+                  >
+                    <LockKeyhole size={17} /> Lock this lead
+                  </button>
+                </aside>
+              </div>
+            )}
+
+            {councilStage === "outcome" && selectedCouncilLead && (
+              <div className={`council-outcome ${selectedCouncilLead.isCorrect ? "correct" : "wrong"}`}>
+                <div className="outcome-seal" aria-hidden="true">
+                  {selectedCouncilLead.isCorrect ? <Check size={38} /> : <X size={38} />}
+                  <span />
+                </div>
+                <p className="eyebrow">
+                  {selectedCouncilLead.isCorrect ? "Lead corroborated" : "Contradiction exposed"}
+                </p>
+                <h4>{selectedCouncilLead.label}</h4>
+                <p>{councilOutcome}</p>
+                <div className="outcome-consequences">
+                  <div>
+                    <small>Table trust</small>
+                    <strong>{councilTrust}/8</strong>
+                    <span>{councilStance === "reveal" ? "Honest testimony counted" : councilStance === "bluff" ? "Bluff recorded" : "Intel withheld"}</span>
+                  </div>
+                  <div>
+                    <small>Next roll</small>
+                    <strong>{councilRollModifier > 0 ? "+1" : "−1"}</strong>
+                    <span>{councilRollModifier > 0 ? "Council advantage" : "Manor penalty"}</span>
+                  </div>
+                  <div>
+                    <small>Ledger</small>
+                    <strong>{councilLocks.length}</strong>
+                    <span>Lead{councilLocks.length === 1 ? "" : "s"} permanently recorded</span>
+                  </div>
+                </div>
+                <button type="button" className="primary-button" onClick={closeMidnightCouncil}>
+                  Return to the board <ArrowRight size={17} />
+                </button>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+
       {activeRoomData && (
         <div className="modal-backdrop" role="presentation">
           <section
@@ -4347,13 +5027,27 @@ export default function Home() {
             >
               <X size={19} />
             </button>
-            <div className="evidence-visual" aria-hidden="true">
-              <div className="evidence-ring" />
-              {(() => {
-                const Icon = activeRoomData.icon;
-                return <Icon size={58} strokeWidth={1.05} />;
-              })()}
-              <span>Evidence {String(caseRooms.findIndex((room) => room.id === activeRoom) + 1).padStart(2, "0")}</span>
+            <div
+              className="evidence-visual"
+              style={{ backgroundImage: `url(${evidenceArtwork[activeRoomData.id]})` }}
+              role="img"
+              aria-label={`Illustrated evidence recovered in the ${activeRoomData.name}: ${activeRoomData.clue}`}
+            >
+              <span className="evidence-number">
+                Evidence {String(caseRooms.findIndex((room) => room.id === activeRoom) + 1).padStart(2, "0")}
+              </span>
+              <div className="evidence-art-label">
+                <span className="evidence-room-icon" aria-hidden="true">
+                  {(() => {
+                    const Icon = activeRoomData.icon;
+                    return <Icon size={23} strokeWidth={1.35} />;
+                  })()}
+                </span>
+                <span>
+                  <small>Recovered in the {activeRoomData.name}</small>
+                  <strong>{activeRoomData.clue}</strong>
+                </span>
+              </div>
             </div>
             <div className="evidence-copy">
               <p className="eyebrow">{activeRoomData.name}</p>
