@@ -3148,6 +3148,446 @@ input:focus-visible {
   min-height: 500px;
 }
 
+.room-investigation-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(92, 22, 34, 0.24), transparent 44%),
+    rgba(3, 3, 4, 0.94);
+  backdrop-filter: blur(16px);
+  animation: room-backdrop-fade 260ms ease both;
+}
+
+.room-investigation-modal {
+  width: min(1240px, 100%);
+  max-height: calc(100svh - 24px);
+  overflow: auto;
+  border: 1px solid rgba(227, 200, 120, 0.46);
+  background:
+    linear-gradient(135deg, rgba(136, 31, 47, 0.08), transparent 36%),
+    #090708;
+  box-shadow:
+    0 35px 90px rgba(0, 0, 0, 0.82),
+    0 0 55px rgba(136, 31, 47, 0.16);
+  animation: room-investigation-enter 460ms cubic-bezier(0.18, 0.86, 0.22, 1) both;
+}
+
+.room-investigation-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  padding: 18px 22px;
+  border-bottom: 1px solid rgba(227, 200, 120, 0.22);
+  background: rgba(8, 6, 7, 0.96);
+}
+
+.room-investigation-header h3 {
+  margin: 2px 0 0;
+  color: var(--paper);
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(1.75rem, 3vw, 2.7rem);
+  font-weight: 500;
+  line-height: 1;
+}
+
+.room-investigation-header > div:first-child > span {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 0.74rem;
+  font-style: italic;
+}
+
+.room-investigation-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.room-investigation-meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #c7b98f;
+  font-size: 0.57rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.room-exit-button {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 0 13px;
+  border: 1px solid rgba(227, 200, 120, 0.26);
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--paper);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+}
+
+.room-exit-button:not(:disabled):hover {
+  border-color: var(--gold-bright);
+  background: rgba(227, 200, 120, 0.08);
+  transform: translateY(-1px);
+}
+
+.room-exit-button:disabled {
+  cursor: wait;
+  opacity: 0.4;
+}
+
+.interactive-room-scene {
+  position: relative;
+  min-height: clamp(390px, 49vw, 580px);
+  overflow: hidden;
+  background-color: #090708;
+  background-position: center;
+  background-size: cover;
+  isolation: isolate;
+  box-shadow: inset 0 -30px 70px rgba(0, 0, 0, 0.72);
+}
+
+.interactive-room-scene::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  content: "";
+  background:
+    linear-gradient(180deg, rgba(3, 3, 4, 0.03), transparent 50%, rgba(4, 3, 4, 0.52) 100%),
+    radial-gradient(circle at 50% 48%, transparent 42%, rgba(3, 2, 3, 0.58) 100%);
+  pointer-events: none;
+}
+
+.interactive-room-scene::after {
+  position: absolute;
+  inset: 13px;
+  z-index: 12;
+  content: "";
+  border: 1px solid rgba(227, 200, 120, 0.25);
+  box-shadow: inset 0 0 42px rgba(0, 0, 0, 0.46);
+  pointer-events: none;
+}
+
+.room-depth-light {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 20%, rgba(255, 221, 146, 0.06) 48%, transparent 68%);
+  animation: room-light-drift 7s ease-in-out infinite alternate;
+}
+
+.investigation-floor-path {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: 7%;
+  z-index: 1;
+  height: 24%;
+  border-bottom: 1px solid rgba(227, 200, 120, 0.19);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(227, 200, 120, 0.08), transparent 66%);
+  filter: blur(1px);
+  pointer-events: none;
+}
+
+.room-hotspot {
+  position: absolute;
+  z-index: 7;
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  min-width: 82px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #fff4d5;
+  transform: translate(-50%, -50%);
+}
+
+.hotspot-beacon {
+  position: relative;
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgba(255, 225, 145, 0.82);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 36% 32%, rgba(255, 236, 177, 0.3), transparent 34%),
+    rgba(25, 14, 15, 0.88);
+  box-shadow:
+    0 0 0 7px rgba(227, 200, 120, 0.08),
+    0 0 25px rgba(227, 200, 120, 0.38);
+  backdrop-filter: blur(5px);
+  transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.hotspot-beacon::after {
+  position: absolute;
+  inset: -9px;
+  content: "";
+  border: 1px solid rgba(227, 200, 120, 0.26);
+  border-radius: 50%;
+  animation: hotspot-pulse 1.8s ease-out infinite;
+}
+
+.room-hotspot strong {
+  padding: 5px 8px;
+  border: 1px solid rgba(227, 200, 120, 0.22);
+  background: rgba(6, 4, 5, 0.82);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.46);
+  color: #f4e6c0;
+  font-size: 0.54rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  text-transform: uppercase;
+  backdrop-filter: blur(7px);
+}
+
+.room-hotspot:not(:disabled):hover .hotspot-beacon,
+.room-hotspot:not(:disabled):focus-visible .hotspot-beacon {
+  background: rgba(111, 28, 43, 0.94);
+  box-shadow:
+    0 0 0 9px rgba(190, 49, 70, 0.13),
+    0 0 32px rgba(227, 200, 120, 0.58);
+  transform: scale(1.12);
+}
+
+.room-hotspot.inspected:not(.clue-found) {
+  filter: saturate(0.4);
+  opacity: 0.48;
+}
+
+.room-hotspot.inspected .hotspot-beacon::after {
+  display: none;
+}
+
+.room-hotspot.clue-found .hotspot-beacon {
+  border-color: #b9efc3;
+  background: rgba(30, 104, 65, 0.92);
+  color: #e4ffe8;
+  box-shadow: 0 0 32px rgba(80, 218, 131, 0.62);
+}
+
+.investigation-detective {
+  position: absolute;
+  top: var(--investigator-y);
+  left: var(--investigator-x);
+  z-index: 5;
+  width: clamp(92px, 12vw, 148px);
+  height: clamp(184px, 26vw, 300px);
+  pointer-events: none;
+  filter: drop-shadow(0 15px 12px rgba(0, 0, 0, 0.76));
+  transform: translate(-50%, -72%);
+  transition:
+    top 540ms cubic-bezier(0.22, 0.8, 0.24, 1),
+    left 540ms cubic-bezier(0.22, 0.8, 0.24, 1),
+    filter 220ms ease;
+}
+
+.investigation-detective::after {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  z-index: -1;
+  width: 58%;
+  height: 11px;
+  content: "";
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--investigator-color) 46%, rgba(0, 0, 0, 0.7));
+  filter: blur(5px);
+  transform: translateX(-50%);
+}
+
+.investigation-detective-art {
+  position: absolute;
+  inset: 0 0 28px;
+  background-image: url("/characters/blackthorn-fullbody-sheet-v1.png");
+  background-repeat: no-repeat;
+  background-position:
+    calc(var(--portrait-column) * 25%)
+    calc(var(--portrait-row) * 100%);
+  background-size: 500% 200%;
+}
+
+.investigation-detective > strong,
+.investigation-detective > small {
+  position: absolute;
+  left: 50%;
+  z-index: 3;
+  width: max-content;
+  max-width: 160px;
+  padding: 3px 7px;
+  background: rgba(6, 4, 5, 0.82);
+  text-align: center;
+  transform: translateX(-50%);
+}
+
+.investigation-detective > strong {
+  bottom: 17px;
+  border: 1px solid color-mix(in srgb, var(--investigator-color) 55%, #d8bd75);
+  color: #fff5d7;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 0.73rem;
+  font-weight: 500;
+}
+
+.investigation-detective > small {
+  bottom: -3px;
+  color: #c9b98d;
+  font-size: 0.43rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.investigation-detective.walking .investigation-detective-art {
+  animation: investigator-walk-cycle 310ms ease-in-out infinite alternate;
+}
+
+.room-presence-strip {
+  position: absolute;
+  right: 28px;
+  bottom: 26px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(370px, 48%);
+  padding: 9px 11px;
+  border: 1px solid rgba(227, 200, 120, 0.24);
+  background: rgba(6, 4, 5, 0.76);
+  color: #cbbf9e;
+  font-size: 0.53rem;
+  line-height: 1.45;
+  backdrop-filter: blur(8px);
+}
+
+.room-presence-strip svg {
+  flex: none;
+  color: var(--gold-bright);
+}
+
+.room-investigation-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px 28px;
+  min-height: 96px;
+  padding: 15px 21px;
+  border-top: 1px solid rgba(227, 200, 120, 0.24);
+  background:
+    linear-gradient(90deg, rgba(136, 31, 47, 0.1), transparent 52%),
+    #0a0809;
+}
+
+.investigation-reading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.investigation-reading > svg {
+  color: var(--gold-bright);
+}
+
+.investigation-reading > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.investigation-reading small {
+  color: var(--gold);
+  font-size: 0.48rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.investigation-reading strong {
+  color: #e5dbca;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(0.82rem, 1.6vw, 1.05rem);
+  font-style: italic;
+  font-weight: 400;
+  line-height: 1.42;
+}
+
+.investigation-reading.active > svg {
+  animation: investigator-reading-pulse 680ms ease-in-out infinite alternate;
+}
+
+.investigation-progress {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.investigation-progress span {
+  width: 12px;
+  height: 12px;
+  border: 1px solid rgba(227, 200, 120, 0.4);
+  background: rgba(255, 255, 255, 0.03);
+  transform: rotate(45deg);
+  transition: background 180ms ease, box-shadow 180ms ease;
+}
+
+.investigation-progress span.complete {
+  background: var(--gold-bright);
+  box-shadow: 0 0 11px rgba(227, 200, 120, 0.45);
+}
+
+.review-room-evidence {
+  grid-column: 1 / -1;
+  justify-self: end;
+}
+
+@keyframes room-investigation-enter {
+  from { opacity: 0; transform: translateY(18px) scale(0.975); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes room-backdrop-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes room-light-drift {
+  from { opacity: 0.45; transform: translateX(-4%); }
+  to { opacity: 0.88; transform: translateX(4%); }
+}
+
+@keyframes hotspot-pulse {
+  from { opacity: 0.72; transform: scale(0.72); }
+  to { opacity: 0; transform: scale(1.45); }
+}
+
+@keyframes investigator-walk-cycle {
+  from { transform: translateY(0) rotate(-1deg); }
+  to { transform: translateY(-5px) rotate(1deg); }
+}
+
+@keyframes investigator-reading-pulse {
+  from { filter: drop-shadow(0 0 2px rgba(227, 200, 120, 0.2)); transform: scale(0.94); }
+  to { filter: drop-shadow(0 0 10px rgba(227, 200, 120, 0.65)); transform: scale(1.06); }
+}
+
 .evidence-modal > .modal-close,
 .accusation-heading .modal-close,
 .settings-heading .modal-close {
@@ -7327,4 +7767,132 @@ input:focus-visible {
   .council-private-intel > p { font-size: 1rem; }
   .council-category-tabs button { font-size: 0.45rem; }
   .council-outcome { min-height: 430px; padding-inline: 20px; }
+}
+
+@media (max-width: 760px) {
+  .room-investigation-backdrop {
+    align-items: stretch;
+    padding: 0;
+  }
+
+  .room-investigation-modal {
+    width: 100%;
+    min-height: 100svh;
+    max-height: 100svh;
+    border: 0;
+  }
+
+  .room-investigation-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 13px;
+    padding: 16px 17px 14px;
+  }
+
+  .room-investigation-header h3 {
+    font-size: 1.9rem;
+  }
+
+  .room-investigation-meta {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .room-exit-button {
+    min-height: 38px;
+  }
+
+  .interactive-room-scene {
+    min-height: clamp(410px, 58svh, 540px);
+    background-position: center;
+  }
+
+  .interactive-room-scene::after {
+    inset: 8px;
+  }
+
+  .room-hotspot {
+    min-width: 64px;
+    gap: 5px;
+  }
+
+  .hotspot-beacon {
+    width: 37px;
+    height: 37px;
+  }
+
+  .room-hotspot strong {
+    max-width: 96px;
+    overflow: hidden;
+    padding: 4px 6px;
+    font-size: 0.45rem;
+    text-overflow: ellipsis;
+  }
+
+  .investigation-detective {
+    width: 94px;
+    height: 192px;
+    transform: translate(-50%, -69%);
+  }
+
+  .room-presence-strip {
+    right: 15px;
+    bottom: 14px;
+    max-width: 58%;
+    padding: 7px 9px;
+    font-size: 0.47rem;
+  }
+
+  .room-investigation-footer {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 14px 17px 18px;
+  }
+
+  .investigation-progress {
+    justify-content: flex-end;
+  }
+
+  .review-room-evidence {
+    width: 100%;
+    justify-self: stretch;
+  }
+}
+
+@media (max-width: 430px) {
+  .room-investigation-header > div:first-child > span {
+    display: none;
+  }
+
+  .room-investigation-meta > span {
+    font-size: 0.48rem;
+  }
+
+  .room-exit-button {
+    padding-inline: 10px;
+    font-size: 0.5rem;
+  }
+
+  .interactive-room-scene {
+    min-height: 430px;
+  }
+
+  .room-hotspot strong {
+    max-width: 76px;
+    font-size: 0.41rem;
+  }
+
+  .investigation-detective {
+    width: 82px;
+    height: 174px;
+  }
+
+  .investigation-detective > strong {
+    max-width: 120px;
+    font-size: 0.61rem;
+  }
+
+  .room-presence-strip {
+    max-width: 66%;
+  }
 }

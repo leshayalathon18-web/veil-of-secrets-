@@ -96,6 +96,124 @@ const evidenceArtwork: Record<RoomId, string> = {
   secretPassage: "/evidence/secret-passage.webp",
 };
 
+type RoomHotspot = {
+  label: string;
+  x: number;
+  y: number;
+  redHerring: string;
+};
+
+const roomArtwork: Record<RoomId, string> = {
+  observatory: "/rooms/observatory.webp",
+  attic: "/rooms/attic.webp",
+  library: "/rooms/library.webp",
+  study: "/rooms/study.webp",
+  masterBedroom: "/rooms/master-bedroom.webp",
+  ballroom: "/rooms/ballroom.webp",
+  hall: "/rooms/grand-hall.webp",
+  guestSuite: "/rooms/guest-suite.webp",
+  dining: "/rooms/dining-hall.webp",
+  garden: "/rooms/moon-garden.webp",
+  conservatory: "/rooms/conservatory.webp",
+  cellar: "/rooms/wine-cellar.webp",
+  kitchen: "/rooms/kitchen.webp",
+  basement: "/rooms/basement.webp",
+  secretPassage: "/rooms/secret-passage.webp",
+};
+
+const roomHotspots: Record<RoomId, RoomHotspot[]> = {
+  observatory: [
+    { label: "Brass telescope", x: 29, y: 47, redHerring: "The eyepiece is recently polished, but carries no usable print." },
+    { label: "Star charts", x: 12, y: 36, redHerring: "The charts predict the storm accurately. Nothing has been altered." },
+    { label: "Celestial globe", x: 61, y: 54, redHerring: "A hidden compartment contains only an old navigation medal." },
+    { label: "Instrument case", x: 84, y: 65, redHerring: "The lock is intact and every brass instrument is accounted for." },
+  ],
+  attic: [
+    { label: "Travel trunk", x: 28, y: 62, redHerring: "The upper tray holds moth-eaten theatre costumes and nothing more." },
+    { label: "Dusty mirror", x: 53, y: 43, redHerring: "A wiped arc suggests someone checked their appearance here." },
+    { label: "Dress form", x: 15, y: 47, redHerring: "Pins in the hem match no damage found on the victim's clothing." },
+    { label: "Stacked crates", x: 80, y: 61, redHerring: "The crates contain winter linens sealed years ago." },
+  ],
+  library: [
+    { label: "Fireplace grate", x: 70, y: 61, redHerring: "Cold ash hides a melted wax seal from an unrelated letter." },
+    { label: "Writing desk", x: 47, y: 62, redHerring: "The blotter preserves a reversed grocery order, not a confession." },
+    { label: "Rolling ladder", x: 27, y: 40, redHerring: "Its wheels stop at the genealogy shelves, recently dusted but undisturbed." },
+    { label: "Locked cabinet", x: 86, y: 48, redHerring: "The cabinet holds first editions whose inventory is complete." },
+  ],
+  study: [
+    { label: "Mahogany desk", x: 31, y: 63, redHerring: "The open appointment book ends before the critical hour." },
+    { label: "Wall clock", x: 57, y: 29, redHerring: "Its pendulum is true; the clock has not lost a second." },
+    { label: "Iron safe", x: 77, y: 52, redHerring: "Inside are bonds, a signet ring, and an untouched emergency key." },
+    { label: "Letter rack", x: 89, y: 68, redHerring: "Every envelope is postmarked before the guests arrived." },
+  ],
+  masterBedroom: [
+    { label: "Crimson wardrobe", x: 58, y: 49, redHerring: "A cedar scent masks perfume, but the garments are dry." },
+    { label: "Vanity mirror", x: 83, y: 50, redHerring: "Powder on the glass forms a print too blurred to identify." },
+    { label: "Jewelry box", x: 25, y: 67, redHerring: "One velvet slot is empty, though the missing brooch was worn at dinner." },
+    { label: "Balcony door", x: 73, y: 37, redHerring: "The latch is wet outside and perfectly dry within." },
+  ],
+  ballroom: [
+    { label: "Gramophone", x: 86, y: 58, redHerring: "The needle is worn from repeated rehearsals, not tonight's performance." },
+    { label: "Grand piano", x: 25, y: 56, redHerring: "A single ivory key carries dust from a musician's glove." },
+    { label: "Curtained stage", x: 67, y: 42, redHerring: "Behind the velvet is only a coil of unused scenery rope." },
+    { label: "Music stand", x: 49, y: 63, redHerring: "The marked passage was corrected before the masquerade began." },
+  ],
+  hall: [
+    { label: "Marble staircase", x: 37, y: 48, redHerring: "The balustrade bears fresh polish and no interrupted handprint." },
+    { label: "Portrait gallery", x: 63, y: 31, redHerring: "One frame hangs crooked, concealing an old servants' bell wire." },
+    { label: "Console table", x: 70, y: 62, redHerring: "A vase has been moved, but only to hide a chipped marble corner." },
+    { label: "Coat alcove", x: 88, y: 49, redHerring: "Rain beads on three coats; their owners all arrived before nine." },
+  ],
+  guestSuite: [
+    { label: "Tea service", x: 42, y: 61, redHerring: "The tea is cold and untouched; the cup contains no residue." },
+    { label: "Speaking tube", x: 60, y: 35, redHerring: "A faint kitchen echo proves the tube is open, not who used it." },
+    { label: "Hatbox", x: 72, y: 67, redHerring: "Beneath the hat is a theatre ticket dated three months earlier." },
+    { label: "Writing desk", x: 82, y: 51, redHerring: "The unfinished letter discusses travel plans, not Blackthorn." },
+  ],
+  dining: [
+    { label: "Cordial setting", x: 43, y: 58, redHerring: "Two glasses share the same citrus scent from the evening garnish." },
+    { label: "Serving cabinet", x: 15, y: 48, redHerring: "Every decanter is sealed and the silver inventory balances." },
+    { label: "Fireplace mantel", x: 63, y: 35, redHerring: "A matchbook belongs to the manor and was opened days ago." },
+    { label: "Bell pull", x: 87, y: 42, redHerring: "The cord rang the pantry at ten, exactly as the service book records." },
+  ],
+  garden: [
+    { label: "Reflecting pool", x: 46, y: 62, redHerring: "The disturbed water reveals a coin, not a discarded weapon." },
+    { label: "Stone bench", x: 16, y: 56, redHerring: "Rain preserved the outline of a book removed before midnight." },
+    { label: "Rose arbor", x: 74, y: 43, redHerring: "A torn leaf catches black wool from a groundskeeper's coat." },
+    { label: "Garden gate", x: 89, y: 48, redHerring: "The lock is rusted shut; no one escaped through it tonight." },
+  ],
+  conservatory: [
+    { label: "Camellia bed", x: 66, y: 58, redHerring: "Several petals fell naturally when the temperature dropped." },
+    { label: "Potting bench", x: 24, y: 57, redHerring: "The soil samples belong to orchids repotted that afternoon." },
+    { label: "Fountain basin", x: 53, y: 66, redHerring: "A brass button at the bottom comes from a gardener's uniform." },
+    { label: "Gardening cabinet", x: 84, y: 48, redHerring: "The shears are clean, oiled, and locked in their proper hook." },
+  ],
+  cellar: [
+    { label: "Oak wine cask", x: 66, y: 43, redHerring: "The tap is sticky with an ordinary spill from yesterday's tasting." },
+    { label: "Bottle racks", x: 17, y: 43, redHerring: "One gap matches a bottle already opened at dinner." },
+    { label: "Tasting table", x: 45, y: 62, redHerring: "The ring marks are dry and predate the storm." },
+    { label: "Ledger stand", x: 87, y: 58, redHerring: "The cellar count is exact; no delivery was disguised." },
+  ],
+  kitchen: [
+    { label: "Butcher block", x: 28, y: 64, redHerring: "Knife marks are deep but old; the block was scrubbed before supper." },
+    { label: "Silver station", x: 66, y: 63, redHerring: "Most cloths carry harmless rouge from polishing the dinner service." },
+    { label: "Pantry cabinet", x: 82, y: 48, redHerring: "The sugar jar is misplaced, but its seal remains unbroken." },
+    { label: "Service bells", x: 89, y: 31, redHerring: "The bell sequence matches the staff log with no extra summons." },
+  ],
+  basement: [
+    { label: "Boiler dial", x: 44, y: 41, redHerring: "Pressure held steady throughout the critical interval." },
+    { label: "Coal chute", x: 67, y: 51, redHerring: "The soot is deep and undisturbed except for a rat's narrow trail." },
+    { label: "Tool bench", x: 83, y: 61, redHerring: "Every wrench is present, though one was returned facing backward." },
+    { label: "Furnace hatch", x: 25, y: 61, redHerring: "The hatch is warm but its lock has not been opened tonight." },
+  ],
+  secretPassage: [
+    { label: "Hidden latch", x: 78, y: 49, redHerring: "The brass is polished by years of use, obscuring tonight's prints." },
+    { label: "Wall niche", x: 25, y: 51, redHerring: "A spent candle and old sealing wax fill the shallow recess." },
+    { label: "Loose panel", x: 56, y: 57, redHerring: "Behind the panel lies a map of passages already known." },
+    { label: "Velvet cord", x: 90, y: 69, redHerring: "The cord opens a ventilation grille, not another exit." },
+  ],
+};
+
 const rooms: Room[] = [
   {
     id: "observatory",
@@ -1469,6 +1587,12 @@ type GameSnapshot = {
   boardNotice: string;
   pawnPositions: Record<string, BoardNodeId>;
   investigated: RoomId[];
+  activeRoom: RoomId | null;
+  investigationRoom: RoomId | null;
+  inspectedHotspots: number[];
+  investigationTarget: number | null;
+  investigationBusy: boolean;
+  investigationMessage: string;
   activePlayerId: string;
   moveHistory: string[];
   council?: CouncilSnapshot;
@@ -1938,6 +2062,14 @@ export default function Home() {
   const [tutorialComplete, setTutorialComplete] = useState(false);
   const [investigated, setInvestigated] = useState<RoomId[]>([]);
   const [activeRoom, setActiveRoom] = useState<RoomId | null>(null);
+  const [investigationRoom, setInvestigationRoom] = useState<RoomId | null>(null);
+  const [investigationSessionRoom, setInvestigationSessionRoom] = useState<RoomId | null>(null);
+  const [inspectedHotspots, setInspectedHotspots] = useState<number[]>([]);
+  const [investigationTarget, setInvestigationTarget] = useState<number | null>(null);
+  const [investigationBusy, setInvestigationBusy] = useState(false);
+  const [investigationMessage, setInvestigationMessage] = useState(
+    "Choose an object. The strongest clue will not always be hidden in the same place.",
+  );
   const [notebookOpen, setNotebookOpen] = useState(false);
   const [notebookTab, setNotebookTab] = useState<NotebookTab>("evidence");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -2043,6 +2175,7 @@ export default function Home() {
   const tutorialVideoRef = useRef<HTMLVideoElement | null>(null);
   const tutorialAudioRef = useRef<HTMLAudioElement | null>(null);
   const witnessUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const investigationTimersRef = useRef<number[]>([]);
   const joinFriendGameRef = useRef<
     (codeOverride?: string, passwordOverride?: string) => Promise<void>
   >(async () => {});
@@ -2071,8 +2204,20 @@ export default function Home() {
     [caseVariant, currentCase],
   );
   const activeRoomData = caseRooms.find((room) => room.id === activeRoom);
+  const investigationRoomData = caseRooms.find((room) => room.id === investigationRoom);
+  const investigationHotspots = investigationRoom ? roomHotspots[investigationRoom] : [];
+  const investigationClueIndex = useMemo(() => {
+    if (!investigationRoom) return -1;
+    const roomSignature = Array.from(investigationRoom).reduce(
+      (total, letter) => total + letter.charCodeAt(0),
+      0,
+    );
+    return (roomSignature + caseVariant * 7) % roomHotspots[investigationRoom].length;
+  }, [caseVariant, investigationRoom]);
   const activeDetective = detectives.find((detective) => detective.id === activePlayerId)
     ?? detectives[0];
+  const activeInvestigationHotspot =
+    investigationTarget !== null ? investigationHotspots[investigationTarget] : null;
   const localDetectiveId =
     networkRole === "guest" ? detectives[1]?.id ?? "iris" : detectives[0]?.id ?? "you";
   const councilDetective =
@@ -2305,6 +2450,8 @@ export default function Home() {
       for (const track of remoteVoiceStreamRef.current?.getTracks() ?? []) track.stop();
       connectionRef.current?.close();
       peerRef.current?.destroy();
+      investigationTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+      investigationTimersRef.current = [];
     },
     [],
   );
@@ -2347,6 +2494,12 @@ export default function Home() {
       boardNotice,
       pawnPositions,
       investigated,
+      activeRoom,
+      investigationRoom,
+      inspectedHotspots,
+      investigationTarget,
+      investigationBusy,
+      investigationMessage,
       activePlayerId,
       moveHistory,
       council: {
@@ -2388,6 +2541,12 @@ export default function Home() {
     boardNotice,
     pawnPositions,
     investigated,
+    activeRoom,
+    investigationRoom,
+    inspectedHotspots,
+    investigationTarget,
+    investigationBusy,
+    investigationMessage,
     activePlayerId,
     moveHistory,
     councilOpen,
@@ -2620,6 +2779,15 @@ export default function Home() {
     setBoardNotice(snapshot.boardNotice);
     setPawnPositions(snapshot.pawnPositions);
     setInvestigated(snapshot.investigated);
+    setActiveRoom(snapshot.activeRoom ?? null);
+    setInvestigationRoom(snapshot.investigationRoom ?? null);
+    setInspectedHotspots(snapshot.inspectedHotspots ?? []);
+    setInvestigationTarget(snapshot.investigationTarget ?? null);
+    setInvestigationBusy(snapshot.investigationBusy ?? false);
+    setInvestigationMessage(
+      snapshot.investigationMessage ??
+        "Choose an object. The strongest clue will not always be hidden in the same place.",
+    );
     setActivePlayerId(snapshot.activePlayerId);
     setMoveHistory(snapshot.moveHistory);
     if (snapshot.council) {
@@ -2969,6 +3137,7 @@ export default function Home() {
   const returnToOpeningScene = () => {
     playChime(soundOn);
     stopVoiceChat(true);
+    setInvestigationRoom(null);
     setNotebookOpen(false);
     setSettingsOpen(false);
     setAccusationOpen(false);
@@ -3002,10 +3171,84 @@ export default function Home() {
     }
   };
 
+  const beginRoomInvestigation = (room: Room) => {
+    investigationTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    investigationTimersRef.current = [];
+    if (investigationSessionRoom !== room.id) {
+      setInvestigationSessionRoom(room.id);
+      setInspectedHotspots([]);
+    }
+    setInvestigationTarget(null);
+    setInvestigationBusy(false);
+    setInvestigationMessage(
+      investigated.includes(room.id)
+        ? `${room.clue} is already secured. You may review the evidence or return to the board.`
+        : "Choose an object. The strongest clue will not always be hidden in the same place.",
+    );
+    setMovesLeft(0);
+    setInvestigationRoom(room.id);
+    setBoardNotice(`${activeDetective.name} enters the ${room.name} to investigate it by hand.`);
+    playChime(soundOn);
+  };
+
+  const inspectRoomHotspot = (hotspotIndex: number) => {
+    if (
+      !investigationRoomData ||
+      investigationBusy ||
+      inspectedHotspots.includes(hotspotIndex) ||
+      investigated.includes(investigationRoomData.id)
+    ) return;
+
+    const room = investigationRoomData;
+    const hotspot = investigationHotspots[hotspotIndex];
+    const foundClue = hotspotIndex === investigationClueIndex;
+    const travelDuration = reducedMotion ? 80 : 540;
+    setInvestigationTarget(hotspotIndex);
+    setInvestigationBusy(true);
+    setInvestigationMessage(`${activeDetective.name} crosses the room to inspect the ${hotspot.label.toLowerCase()}...`);
+    playChime(soundOn);
+
+    const inspectTimer = window.setTimeout(() => {
+      setInspectedHotspots((current) =>
+        current.includes(hotspotIndex) ? current : [...current, hotspotIndex],
+      );
+      if (!foundClue) {
+        setInvestigationMessage(hotspot.redHerring);
+        setInvestigationBusy(false);
+        playChime(soundOn);
+        return;
+      }
+
+      setInvestigationMessage(`Clue found: ${room.clue}. Securing it for the notebook...`);
+      playChime(soundOn, true);
+      const revealTimer = window.setTimeout(() => {
+        setInvestigationBusy(false);
+        setInvestigationRoom(null);
+        setSearchedThisTurn(true);
+        inspectRoom(room);
+        setBoardNotice(`${room.clue} was discovered inside the ${hotspot.label.toLowerCase()} and added to the notebook.`);
+      }, reducedMotion ? 120 : 780);
+      investigationTimersRef.current.push(revealTimer);
+    }, travelDuration);
+    investigationTimersRef.current.push(inspectTimer);
+  };
+
+  const closeRoomInvestigation = () => {
+    if (investigationBusy) return;
+    setInvestigationRoom(null);
+    setInvestigationTarget(null);
+    setBoardNotice(
+      investigationRoomData && !investigated.includes(investigationRoomData.id)
+        ? `The ${investigationRoomData.name} remains unsolved. You may resume the search this turn.`
+        : "Return to the board and continue the investigation.",
+    );
+  };
+
   const beginMidnightCouncil = (meetingRound: number) => {
     setNotebookOpen(false);
     setAccusationOpen(false);
     setActiveRoom(null);
+    setInvestigationRoom(null);
     setCouncilRound(meetingRound);
     setCouncilStage("intel");
     setCouncilSeconds(friendConnected ? 45 : 35);
@@ -3135,7 +3378,7 @@ export default function Home() {
       enteredRoom
         ? investigated.includes(enteredRoom.id)
           ? `${activeDetective.name} entered the ${enteredRoom.name}. Its strongest clue is already secured.`
-          : `${activeDetective.name} entered the ${enteredRoom.name}. Search it now, or leave through the doorway.`
+          : `${activeDetective.name} entered the ${enteredRoom.name}. Step inside and investigate its objects.`
         : `${activeDetective.name}'s pawn advances across the marble corridor.`,
     );
     playChime(soundOn);
@@ -3143,10 +3386,7 @@ export default function Home() {
 
   const searchCurrentRoom = () => {
     if (!hasRolled || searchedThisTurn || !currentRoom || botsMoving || !isLocalTurn) return;
-    setSearchedThisTurn(true);
-    setMovesLeft(0);
-    inspectRoom(currentRoom);
-    setBoardNotice(`${currentRoom.clue} was added to your private notebook.`);
+    beginRoomInvestigation(currentRoom);
   };
 
   const animateBotTurns = async () => {
@@ -3242,6 +3482,11 @@ export default function Home() {
     setEventIndex(null);
     setInvestigated([]);
     setActiveRoom(null);
+    setInvestigationRoom(null);
+    setInvestigationSessionRoom(null);
+    setInspectedHotspots([]);
+    setInvestigationTarget(null);
+    setInvestigationBusy(false);
     setNotebookOpen(false);
     setNotebookTab("evidence");
     setAccusationOpen(false);
@@ -4503,7 +4748,7 @@ export default function Home() {
                       </span>
                       <span className="board-room-copy">
                         <strong>{room.name}</strong>
-                        <small>{found ? room.clue : current ? "Search this room" : "Enter through the door"}</small>
+                        <small>{found ? room.clue : current ? "Enter and investigate" : "Enter through the door"}</small>
                       </span>
                       {found && <Check className="clue-check" size={14} />}
                       <span className="pawn-cluster" aria-hidden="true">
@@ -4588,9 +4833,9 @@ export default function Home() {
                     !isLocalTurn
                   }
                 >
-                  <Search size={18} />
+                  <DoorOpen size={18} />
                   <span>
-                    <strong>Search room</strong>
+                    <strong>Investigate room</strong>
                     <small>{currentRoom?.name ?? "Enter a room first"}</small>
                   </span>
                 </button>
@@ -5008,6 +5253,127 @@ export default function Home() {
                 </button>
               </div>
             )}
+          </section>
+        </div>
+      )}
+
+      {investigationRoomData && (
+        <div className="room-investigation-backdrop" role="presentation">
+          <section
+            className="room-investigation-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="room-investigation-title"
+          >
+            <header className="room-investigation-header">
+              <div>
+                <p className="eyebrow">Inside Blackthorn Manor</p>
+                <h3 id="room-investigation-title">{investigationRoomData.name}</h3>
+                <span>{investigationRoomData.kicker}</span>
+              </div>
+              <div className="room-investigation-meta">
+                <span>
+                  <Search size={14} /> {inspectedHotspots.length}/{investigationHotspots.length} examined
+                </span>
+                <button
+                  type="button"
+                  className="room-exit-button"
+                  onClick={closeRoomInvestigation}
+                  disabled={investigationBusy}
+                  aria-label={`Return to the board from the ${investigationRoomData.name}`}
+                >
+                  Return to board <X size={17} />
+                </button>
+              </div>
+            </header>
+
+            <div
+              className="interactive-room-scene"
+              style={{ backgroundImage: `url(${roomArtwork[investigationRoomData.id]})` }}
+              aria-label={`Interactive illustrated interior of the ${investigationRoomData.name}`}
+            >
+              <div className="room-depth-light" aria-hidden="true" />
+              <div className="investigation-floor-path" aria-hidden="true" />
+              {investigationHotspots.map((hotspot, hotspotIndex) => {
+                const inspected = inspectedHotspots.includes(hotspotIndex);
+                const clueFound = inspected && hotspotIndex === investigationClueIndex;
+                return (
+                  <button
+                    key={hotspot.label}
+                    type="button"
+                    className={`room-hotspot ${inspected ? "inspected" : ""} ${clueFound ? "clue-found" : ""}`}
+                    style={{ left: `${hotspot.x}%`, top: `${hotspot.y}%` }}
+                    onClick={() => inspectRoomHotspot(hotspotIndex)}
+                    disabled={
+                      investigationBusy ||
+                      inspected ||
+                      investigated.includes(investigationRoomData.id)
+                    }
+                    aria-label={`${inspected ? "Examined" : "Inspect"} ${hotspot.label}`}
+                  >
+                    <span className="hotspot-beacon" aria-hidden="true">
+                      {clueFound ? <Check size={17} /> : <Search size={15} />}
+                    </span>
+                    <strong>{hotspot.label}</strong>
+                  </button>
+                );
+              })}
+
+              <div
+                className={`investigation-detective ${investigationBusy ? "walking" : ""}`}
+                style={{
+                  ...portraitStyle(activeDetective.portraitIndex),
+                  "--investigator-x": `${activeInvestigationHotspot?.x ?? 9}%`,
+                  "--investigator-y": `${activeInvestigationHotspot?.y ?? 73}%`,
+                  "--investigator-color": activeDetective.color,
+                } as CSSProperties}
+                aria-label={`${activeDetective.name} moving through the ${investigationRoomData.name}`}
+              >
+                <span className="investigation-detective-art" aria-hidden="true" />
+                <strong>{activeDetective.name}</strong>
+                <small>{activeDetective.title}</small>
+              </div>
+
+              <div className="room-presence-strip">
+                <UsersRound size={15} />
+                <span>
+                  {friendConnected
+                    ? `${friendName} can discuss each object with you over table voice.`
+                    : `${detectives.length - 1} manor rivals continue their visible searches elsewhere.`}
+                </span>
+              </div>
+            </div>
+
+            <footer className="room-investigation-footer">
+              <div className={`investigation-reading ${investigationBusy ? "active" : ""}`} aria-live="polite">
+                <Eye size={20} />
+                <span>
+                  <small>{investigationBusy ? "Investigator moving" : "Room observation"}</small>
+                  <strong>{investigationMessage}</strong>
+                </span>
+              </div>
+              <div className="investigation-progress" aria-label="Objects examined">
+                {investigationHotspots.map((hotspot, hotspotIndex) => (
+                  <span
+                    key={hotspot.label}
+                    className={inspectedHotspots.includes(hotspotIndex) ? "complete" : ""}
+                    title={hotspot.label}
+                  />
+                ))}
+              </div>
+              {investigated.includes(investigationRoomData.id) && (
+                <button
+                  type="button"
+                  className="primary-button review-room-evidence"
+                  onClick={() => {
+                    setInvestigationRoom(null);
+                    setActiveRoom(investigationRoomData.id);
+                  }}
+                >
+                  <BookOpen size={17} /> Review secured evidence
+                </button>
+              )}
+            </footer>
           </section>
         </div>
       )}

@@ -30,6 +30,17 @@ original Blackthorn Manor evidence scenes and contain no third-party artwork,
 characters, or logos. The generation atlas is archived at
 `assets/generated/blackthorn-evidence-atlas.png`.
 
+The fifteen interactive Blackthorn Manor room interiors in `public/rooms/`
+were created specifically for Veil of Secrets with OpenAI image generation.
+Their original environment atlas is archived at
+`assets/generated/blackthorn-room-interiors-atlas-v1.png`.
+
+The full-body investigator artwork in
+`public/characters/blackthorn-fullbody-sheet-v1.png` was created with OpenAI
+image generation from the game's ten original fictional detective designs.
+The removable-background production source is archived at
+`assets/generated/blackthorn-fullbody-chromakey-v1.png`.
+
 The 90-second tutorial film in `public/tutorial/` is an original programmatic
 motion-graphics production made from the game's original character and brand
 art. The film contains no third-party footage.

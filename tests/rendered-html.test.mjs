@@ -214,6 +214,16 @@ test("keeps the full tabletop case and accessibility controls in source", async 
   assert.match(page, /evidence-art-label/);
   assert.match(page, /Illustrated evidence recovered in the/);
   assert.match(css, /@keyframes evidence-art-reveal/);
+  assert.match(page, /const roomHotspots: Record<RoomId, RoomHotspot\[\]>/);
+  assert.match(page, /const beginRoomInvestigation/);
+  assert.match(page, /const inspectRoomHotspot/);
+  assert.match(page, /Interactive illustrated interior of the/);
+  assert.match(page, /Investigate room/);
+  assert.match(page, /room-investigation-modal/);
+  assert.match(page, /investigation-detective-art/);
+  assert.match(css, /blackthorn-fullbody-sheet-v1\.png/);
+  assert.match(css, /@keyframes investigator-walk-cycle/);
+  assert.match(css, /\.room-hotspot\.clue-found/);
   assert.match(packageJson, /"lucide-react"/);
   assert.match(packageJson, /"peerjs"/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
@@ -222,6 +232,16 @@ test("keeps the full tabletop case and accessibility controls in source", async 
   await access(new URL("../public/branding/veil-sigil-v2.png", import.meta.url));
   await access(new URL("../public/evidence/library.webp", import.meta.url));
   await access(new URL("../public/evidence/secret-passage.webp", import.meta.url));
+  await access(new URL("../public/rooms/library.webp", import.meta.url));
+  await access(new URL("../public/rooms/secret-passage.webp", import.meta.url));
+  await access(new URL("../public/characters/blackthorn-fullbody-sheet-v1.png", import.meta.url));
+  for (const roomAsset of [
+    "observatory", "attic", "library", "study", "master-bedroom",
+    "ballroom", "grand-hall", "guest-suite", "dining-hall", "moon-garden",
+    "conservatory", "wine-cellar", "kitchen", "basement", "secret-passage",
+  ]) {
+    await access(new URL(`../public/rooms/${roomAsset}.webp`, import.meta.url));
+  }
   await access(new URL("../public/tutorial/veil-of-secrets-tutorial.mp4", import.meta.url));
   await access(new URL("../public/tutorial/veil-of-secrets-tutorial-poster.jpg", import.meta.url));
   await access(new URL("../public/tutorial/veil-of-secrets-tutorial.vtt", import.meta.url));
