@@ -7247,7 +7247,9 @@ input:focus-visible {
 
 .character-portrait,
 .detective-card-portrait,
-.pawn-character {
+.pawn-character,
+.council-detective-portrait,
+.vote-portrait {
   background-image: url("/characters/blackthorn-cast-sheet.png");
   background-repeat: no-repeat;
   background-size: 500% 200%;

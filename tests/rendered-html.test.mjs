@@ -184,6 +184,7 @@ test("keeps the full tabletop case and accessibility controls in source", async 
   assert.match(css, /\.manor-board/);
   assert.match(css, /\.character-card-grid/);
   assert.match(css, /\.character-portrait/);
+  assert.match(css, /\.council-detective-portrait,?\s*\.vote-portrait/);
   assert.match(css, /blackthorn-cast-sheet\.png/);
   assert.match(css, /\.movement-ledger/);
   assert.match(css, /@keyframes pawn-visible-step/);
@@ -217,6 +218,10 @@ test("keeps the full tabletop case and accessibility controls in source", async 
   assert.match(page, /const roomHotspots: Record<RoomId, RoomHotspot\[\]>/);
   assert.match(page, /const beginRoomInvestigation/);
   assert.match(page, /const inspectRoomHotspot/);
+  assert.match(page, /inspectRoom\(room, false\)/);
+  assert.match(page, /Keep examining the other objects/);
+  assert.match(page, /Continue examining the remaining objects before you leave/);
+  assert.doesNotMatch(page, /setInvestigationRoom\(null\);\s*setSearchedThisTurn\(true\);\s*inspectRoom\(room\)/);
   assert.match(page, /Interactive illustrated interior of the/);
   assert.match(page, /Investigate room/);
   assert.match(page, /room-investigation-modal/);

@@ -3163,8 +3163,8 @@ export default function Home() {
     }, 680);
   };
 
-  const inspectRoom = (room: Room) => {
-    setActiveRoom(room.id);
+  const inspectRoom = (room: Room, openEvidence = true) => {
+    if (openEvidence) setActiveRoom(room.id);
     if (!investigated.includes(room.id)) {
       setInvestigated((current) => [...current, room.id]);
       playChime(soundOn);
@@ -3182,7 +3182,7 @@ export default function Home() {
     setInvestigationBusy(false);
     setInvestigationMessage(
       investigated.includes(room.id)
-        ? `${room.clue} is already secured. You may review the evidence or return to the board.`
+        ? `${room.clue} is secured. Continue examining the remaining objects before you leave.`
         : "Choose an object. The strongest clue will not always be hidden in the same place.",
     );
     setMovesLeft(0);
@@ -3195,8 +3195,7 @@ export default function Home() {
     if (
       !investigationRoomData ||
       investigationBusy ||
-      inspectedHotspots.includes(hotspotIndex) ||
-      investigated.includes(investigationRoomData.id)
+      inspectedHotspots.includes(hotspotIndex)
     ) return;
 
     const room = investigationRoomData;
@@ -3223,10 +3222,12 @@ export default function Home() {
       playChime(soundOn, true);
       const revealTimer = window.setTimeout(() => {
         setInvestigationBusy(false);
-        setInvestigationRoom(null);
         setSearchedThisTurn(true);
-        inspectRoom(room);
-        setBoardNotice(`${room.clue} was discovered inside the ${hotspot.label.toLowerCase()} and added to the notebook.`);
+        inspectRoom(room, false);
+        setInvestigationMessage(
+          `Clue secured: ${room.clue}. Keep examining the other objects; the room stays open until you choose to leave.`,
+        );
+        setBoardNotice(`${room.clue} was discovered inside the ${hotspot.label.toLowerCase()} and added to the notebook. Continue the room search.`);
       }, reducedMotion ? 120 : 780);
       investigationTimersRef.current.push(revealTimer);
     }, travelDuration);
@@ -3385,7 +3386,8 @@ export default function Home() {
   };
 
   const searchCurrentRoom = () => {
-    if (!hasRolled || searchedThisTurn || !currentRoom || botsMoving || !isLocalTurn) return;
+    const canRevisitSecuredRoom = Boolean(currentRoom && investigated.includes(currentRoom.id));
+    if (!hasRolled || (searchedThisTurn && !canRevisitSecuredRoom) || !currentRoom || botsMoving || !isLocalTurn) return;
     beginRoomInvestigation(currentRoom);
   };
 
@@ -4827,7 +4829,7 @@ export default function Home() {
                   onClick={searchCurrentRoom}
                   disabled={
                     !hasRolled ||
-                    searchedThisTurn ||
+                    (searchedThisTurn && !investigated.includes(currentRoom?.id ?? "hall")) ||
                     !currentRoom ||
                     botsMoving ||
                     !isLocalTurn
@@ -5306,8 +5308,7 @@ export default function Home() {
                     onClick={() => inspectRoomHotspot(hotspotIndex)}
                     disabled={
                       investigationBusy ||
-                      inspected ||
-                      investigated.includes(investigationRoomData.id)
+                      inspected
                     }
                     aria-label={`${inspected ? "Examined" : "Inspect"} ${hotspot.label}`}
                   >
